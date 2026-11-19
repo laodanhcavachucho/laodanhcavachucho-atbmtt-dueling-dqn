@@ -17,7 +17,7 @@
             <span class="spec-badge">Bộ não AI: Dueling DQN</span>
             <span class="spec-badge">State Vector: 2.650 / 2.750 chiều</span>
             <span class="spec-badge">Action Space: 50 Kho (A = 0..49)</span>
-            <span class="spec-badge">Tấn công: FGSM &amp; Đầu độc trạng thái</span>
+            <span class="spec-badge">Tương tác: Thời gian thực (0ms)</span>
         </div>
     </header>
 
@@ -90,7 +90,7 @@
                 <div class="workflow-stepper-box">
                     <div class="workflow-header">
                         <div class="workflow-header-title">
-                            <span>🎯 QUY TRÌNH THAO TÁC TRÌNH DIỄN 5 BƯỚC (Bấm lần lượt từ Bước 1 → Bước 5 để thuyết trình cho Cô và Lớp):</span>
+                            <span>🎯 QUY TRÌNH THAO TÁC TRÌNH DIỄN 5 BƯỚC (Bấm lần lượt Bước 1 → Bước 5 để xem hệ thống phản hồi theo thời gian thực):</span>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button id="btn-auto-demo-5steps" class="btn-primary btn-sm">
@@ -109,14 +109,14 @@
                             <span class="wf-step-desc">Dữ liệu IoT/WMS sạch. AI phân bổ tối ưu 50 đơn (Chi phí 1.550, 0 lỗi).</span>
                         </button>
                         <button class="wf-step-btn" data-wf="2">
-                            <span class="wf-step-num">Bước 2 • Khai thác lỗ hổng</span>
+                            <span class="wf-step-num">Bước 2 • Can thiệp gói tin</span>
                             <span class="wf-step-title">💀 2. Tin Tặc Bơm Nhiễu</span>
-                            <span class="wf-step-desc">Chặn gói tin API, tiêm nhiễu đối kháng FGSM làm sai lệch vector trạng thái.</span>
+                            <span class="wf-step-desc">Mở Bảng Bơm Nhiễu Trực Tiếp bên dưới để sửa gói tin &amp; xem điểm Q biến đổi!</span>
                         </button>
                         <button class="wf-step-btn active" data-wf="3">
                             <span class="wf-step-num">Bước 3 • Sự cố bùng phát (M1)</span>
-                            <span class="wf-step-title">⚠️ 3. AI Bị Lừa &amp; Thiệt Hại</span>
-                            <span class="wf-step-desc">Điểm Q(s,a) bị đảo chiều, AI điều xe vào kho lỗi gây đứt gãy chuỗi cung ứng.</span>
+                            <span class="wf-step-title">⚠️ 3. AI Sập Bẫy &amp; Thiệt Hại</span>
+                            <span class="wf-step-desc">AI chốt lệnh điều xe theo điểm Q giả, gây tràn kho, kẹt bến &amp; đội chi phí.</span>
                         </button>
                         <button class="wf-step-btn" data-wf="4">
                             <span class="wf-step-num">Bước 4 • Phòng thủ AI (M2)</span>
@@ -137,9 +137,40 @@
                         </div>
                         <span id="wf-banner-badge" class="status-pill status-err">CHẾ ĐỘ: M1 – ĐANG BỊ TẤN CÔNG</span>
                     </div>
+
+                    <!-- BẢNG THAO TÁC BƠM NHIỄU TRỰC TIẾP THEO THỜI GIAN THỰC (LIVE HACKER INJECTION CONSOLE) -->
+                    <div id="hacker-live-console" class="hacker-live-console">
+                        <div class="hacker-console-head">
+                            <strong>⚡ BẢNG THAO TÁC TẤN CÔNG TRỰC TIẾP TRÊN ĐƠN HÀNG ĐANG CHỌN (<span id="hack-target-order-label">Đơn hàng #1 - U1</span>):</strong>
+                            <span>Bấm vào bất kỳ đòn tấn công nào dưới đây để sửa gói tin và xem Điểm Q(s,a), Bản đồ &amp; KPI nhảy số ngay lập tức!</span>
+                        </div>
+                        <div class="hacker-actions-bar">
+                            <button class="btn-hack-action" data-hack="flipOpen">
+                                🔓 1. Lật Bit Kho Đóng → Mở (O_obs = 1)
+                            </button>
+                            <button class="btn-hack-action" data-hack="poisonCost">
+                                💸 2. Đảo Giá Cước (Kho xa = 12 đv, Kho gần = 165 đv)
+                            </button>
+                            <button class="btn-hack-action" data-hack="spoofCap">
+                                📦 3. Bơm +180 Tấn Tồn Kho Ảo (Gây tràn kho CV)
+                            </button>
+                            <button class="btn-hack-action" data-hack="cutDemand">
+                                📉 4A. Cắt Giảm 60% Đơn Hàng (Giao thiếu hàng)
+                            </button>
+                            <button class="btn-hack-action" data-hack="inflateDemand">
+                                📈 4B. Thổi Phồng 190% Đơn Hàng (Lãng phí xe)
+                            </button>
+                            <button class="btn-hack-action" data-hack="resetLmax">
+                                🚧 5. Xóa Bộ Đếm Bến Xuất Hàng (l_obs = 0 / l_max)
+                            </button>
+                            <button id="btn-hack-clear" class="btn-hack-reset">
+                                ♻️ Khôi Phục Gói Tin Mặc Định Kịch Bản
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Bảng điều khiển chi tiết -->
+                <!-- Bảng điều khiển chi tiết (Tất cả phản hồi thời gian thực ngay khi kéo/chọn) -->
                 <div class="controls-grid">
                     <div class="control-group">
                         <label for="select-scenario">Kịch bản thuyết trình (Thành viên 1 → 9)</label>
@@ -175,13 +206,13 @@
                     </div>
 
                     <div class="control-group">
-                        <label>Biên độ nhiễu FGSM (<span id="label-epsilon">ε = 0.15</span>) • Quy mô tấn công (<span id="label-intensity">30%</span>)</label>
+                        <label>Kéo thanh trượt để đổi nhiễu FGSM theo thời gian thực (<span id="label-epsilon">ε = 0.15</span> • <span id="label-intensity">30%</span>)</label>
                         <div class="sliders-inline">
                             <div class="slider-item">
-                                <input type="range" id="input-epsilon" min="0.05" max="0.40" step="0.01" value="0.15" title="Biên độ nhiễu đối kháng FGSM ε" />
+                                <input type="range" id="input-epsilon" min="0.05" max="0.45" step="0.01" value="0.15" title="Kéo để thay đổi biên độ nhiễu đối kháng FGSM ε theo thời gian thực" />
                             </div>
                             <div class="slider-item">
-                                <input type="range" id="input-intensity" min="0.10" max="0.60" step="0.05" value="0.30" title="Tỷ lệ phần tử chịu tác động" />
+                                <input type="range" id="input-intensity" min="0.10" max="0.70" step="0.05" value="0.30" title="Kéo để thay đổi quy mô phần tử chịu tác động theo thời gian thực" />
                             </div>
                             <input type="number" id="input-seed" class="number-input" value="2026" style="width: 76px;" title="Seed cố định bộ dữ liệu chung" />
                         </div>
@@ -189,7 +220,7 @@
 
                     <div class="control-group">
                         <button id="btn-recalculate" class="btn-primary">
-                            ⚡ Áp Dụng Tham Số Mới
+                            🔄 Đặt Lại Chuẩn (ε=0.15, 30%)
                         </button>
                     </div>
                 </div>
@@ -231,7 +262,7 @@
             </div>
 
             <!-- 8 Chỉ số đánh giá chung (KPIs) -->
-            <div class="kpi-grid">
+            <div id="kpi-grid-container" class="kpi-grid">
                 <div class="kpi-card">
                     <div class="kpi-title">1. Tổng chi phí phân bổ (TAC)</div>
                     <div id="kpi-tac" class="kpi-value">0</div>
@@ -266,10 +297,10 @@
 
             <!-- BẢN ĐỒ MẠNG LƯỚI 50x50 & MÁY QUÉT GÓI TIN / ĐIỂM Q TẠI TỪNG ĐƠN HÀNG -->
             <div class="visualizer-grid">
-                <!-- Cột trái: Bản đồ điều phối trực quan -->
+                <!-- Cột trái: Bản đồ điều phối trực quan (Bấm trực tiếp lên điểm bất kỳ trên bản đồ để chọn!) -->
                 <div class="panel-card">
                     <div class="panel-header">
-                        <h3>Bản Đồ Điều Phối Vận Tải Thời Gian Thực (50 Kho W₁..W₅₀ &amp; 50 Khách Hàng U₁..U₅₀)</h3>
+                        <h3>Bản Đồ Điều Phối Vận Tải Thời Gian Thực (Bấm trực tiếp vào Kho hoặc Khách hàng trên bản đồ để soi!)</h3>
                         <span id="step-counter-badge" class="spec-badge">Đơn hàng #1 / 50</span>
                     </div>
                     <div class="canvas-wrapper">
@@ -307,7 +338,7 @@
                 </div>
 
                 <!-- Cột phải: Máy quét gói tin bị tin tặc sửa đổi & Bảng so sánh Q-value Top 5 kho -->
-                <div class="panel-card">
+                <div id="inspector-right-panel" class="panel-card">
                     <div class="panel-header">
                         <h3>🔍 Máy Quét Gói Tin Bị Tin Tặc Can Thiệp &amp; Giải Mã Quyết Định Dueling DQN</h3>
                         <span id="inspector-order-badge" class="status-pill status-warn">Đang soi: Đơn hàng U1</span>
@@ -329,7 +360,7 @@
 
                     <!-- Bảng so sánh điểm số Q(s,a) giữa Trạng thái sạch vs Trạng thái bị tấn công trên Top 5 Kho ứng viên -->
                     <h4 style="font-size: 13px; color: #38bdf8; margin-bottom: 4px;">
-                        Bảng So Sánh Điểm Số Q(s, a) Trên 5 Kho Ứng Viên Hàng Đầu (Giải thích vì sao AI chọn nhầm):
+                        Bảng So Sánh Điểm Số Q(s, a) Trên 5 Kho Ứng Viên Hàng Đầu (Cập nhật trực tiếp theo từng thao tác):
                     </h4>
                     <div class="table-responsive" style="margin-bottom: 14px;">
                         <table class="report-table">
@@ -339,7 +370,7 @@
                                     <th>Cước Thực → Giả</th>
                                     <th>Tồn kho Thực → Giả</th>
                                     <th>Điểm Q Sạch</th>
-                                    <th>Điểm Q Khi Bị Tấn Công</th>
+                                    <th>Điểm Q Hiện Tại</th>
                                     <th>Quyết định của AI &amp; Rào chắn</th>
                                 </tr>
                             </thead>
@@ -349,7 +380,7 @@
 
                     <!-- Bảng số liệu tổng kết của kịch bản đang chọn -->
                     <h4 style="font-size: 13px; margin-bottom: 4px; color: #34d399;">
-                        Bảng Tổng Kết Kịch Bản Đang Chọn (Số liệu chuẩn điền vào báo cáo Word của Thành viên):
+                        Bảng Tổng Kết Kịch Bản Đang Chọn (Cột đang chạy được viền xanh nổi bật • Cập nhật tức thời):
                     </h4>
                     <div id="live-scenario-table-container" class="table-responsive"></div>
                 </div>
@@ -358,7 +389,7 @@
             <!-- Nhật ký chi tiết 50 bước phân bổ (Bấm vào dòng bất kỳ để soi chi tiết đơn hàng đó) -->
             <div class="panel-card">
                 <div class="panel-header">
-                    <h3>📋 Nhật Ký Điều Phối 50 Đơn Hàng Trong Ca Vận Hành (Bấm vào bất kỳ đơn hàng nào để soi gói tin &amp; điểm Q)</h3>
+                    <h3>📋 Nhật Ký Điều Phối 50 Đơn Hàng Trong Ca Vận Hành (Bấm vào bất kỳ dòng nào để soi gói tin &amp; bơm nhiễu đơn hàng đó)</h3>
                     <span class="text-muted">Màu đỏ = Đơn hàng bị tin tặc đánh lừa gây sự cố • Màu vàng = Đã được Rào chắn M3 cứu nguy</span>
                 </div>
                 <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">

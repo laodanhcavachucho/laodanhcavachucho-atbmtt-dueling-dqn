@@ -1,7 +1,9 @@
 /**
- * ĐỘNG CƠ MÔ PHỎNG DUELING DQN & 9 KỊCH BẢN TẤN CÔNG ĐỐI KHÁNG (AI ATTACK)
- * Hệ thống Điều hành Logistics & Phân bổ Kho hàng (Warehouse Allocation: 50 Kho x 50 Khách hàng)
- * Bổ sung Bộ giải mã gói tin tin tặc (Packet Diff), Biến thiên Q-value & Nhật ký sự cố doanh nghiệp.
+ * ĐỘNG CƠ MÔ PHỎNG THỜI GIAN THỰC DUELING DQN & 9 KỊCH BẢN TẤN CÔNG ĐỐI KHÁNG (AI ATTACK)
+ * Hỗ trợ tương tác thời gian thực (Real-time Reactive Simulation):
+ * - Thay đổi tham số (Epsilon, Cường độ, Seed) phản hồi ngay lập tức (0ms delay).
+ * - Cho phép người thuyết trình can thiệp trực tiếp gói tin của từng đơn hàng/kho hàng (Live Hacker Override)
+ *   và xem điểm số Q(s,a), nhánh V(s), A(s,a), tuyến đường bản đồ và 8 chỉ số KPI biến đổi trực tiếp.
  */
 
 class SeededRNG {
@@ -32,6 +34,10 @@ class WarehouseEnvironmentEngine {
         this.bonusCompletion = 15.0;
         this.penaltyUnserved = 35.0;
         this.gamma = 0.95;
+
+        // Lưu trữ các can thiệp thủ công trực tiếp của người thuyết trình (Live Interactive Overrides)
+        // key: customerIdx -> { flipOpen: boolean, poisonCost: boolean, spoofCap: boolean, alterDemandFactor: number, resetLmax: boolean, targetWarehouseIdx: number }
+        this.manualOverrides = config.manualOverrides || {};
 
         this.initBaseDataset();
     }
@@ -187,26 +193,32 @@ class WarehouseEnvironmentEngine {
 
         const intensity = this.attackIntensity;
         const eps = this.epsilonFGSM;
+        // Hệ số khuếch đại trực quan theo thanh trượt epsilon & intensity để người dùng kéo slider thấy số nhảy ngay lập tức
+        const scaleFactor = (eps / 0.15) * (intensity / 0.30);
+        const activeMod = Math.max(1, Math.round(3 / Math.max(0.25, intensity / 0.30)));
 
         switch (Number(scenarioId)) {
             case 1: {
                 for (let i = 0; i < this.numWarehouses; i++) {
-                    if (realState.openStatus[i] === 0 && customerIdx % 3 !== 2) {
+                    if (realState.openStatus[i] === 0 && customerIdx % activeMod !== activeMod - 1) {
                         obs.openStatus[i] = 1;
-                        obs.costMatrix[i][customerIdx] = Math.max(12, Math.round(realState.costMatrix[i][customerIdx] * (0.52 - eps * 0.3)));
-                    } else if (realState.openStatus[i] === 1 && i % 6 === 0 && intensity >= 0.2) {
+                        const discount = Math.max(0.15, 0.56 - eps * 0.8 - (intensity - 0.3) * 0.4);
+                        obs.costMatrix[i][customerIdx] = Math.max(10, Math.round(realState.costMatrix[i][customerIdx] * discount));
+                    } else if (realState.openStatus[i] === 1 && i % Math.max(2, Math.round(7 - intensity * 8)) === 0) {
                         obs.openStatus[i] = 0;
                     }
                 }
                 break;
             }
             case 2: {
+                const highThreshold = Math.max(55, Math.round(92 - intensity * 35));
+                const lowThreshold = Math.min(75, Math.round(45 + intensity * 25));
                 for (let i = 0; i < this.numWarehouses; i++) {
                     const realC = realState.costMatrix[i][customerIdx];
-                    if (realC > 82) {
-                        obs.costMatrix[i][customerIdx] = Math.max(14, Math.round(realC * (0.24 - eps * 0.2)));
-                    } else if (realC < 52) {
-                        obs.costMatrix[i][customerIdx] = Math.round(realC * (2.5 + intensity));
+                    if (realC > highThreshold) {
+                        obs.costMatrix[i][customerIdx] = Math.max(10, Math.round(realC * Math.max(0.12, 0.32 - eps * 0.5)));
+                    } else if (realC < lowThreshold) {
+                        obs.costMatrix[i][customerIdx] = Math.round(realC * (2.1 + intensity * 1.5 + eps * 2.0));
                     }
                 }
                 break;
@@ -214,17 +226,20 @@ class WarehouseEnvironmentEngine {
             case 3: {
                 for (let i = 0; i < this.numWarehouses; i++) {
                     if (realState.openStatus[i] === 1 && realState.capacity[i] < realState.demand[customerIdx]) {
-                        obs.capacity[i] = realState.demand[customerIdx] + Math.round(135 * (1 + eps));
-                        obs.costMatrix[i][customerIdx] = Math.max(12, Math.round(realState.costMatrix[i][customerIdx] * (0.45 - eps * 0.25)));
+                        obs.capacity[i] = realState.demand[customerIdx] + Math.round(135 * (1 + eps + intensity));
+                        const discount = Math.max(0.15, 0.52 - eps * 0.6 - intensity * 0.25);
+                        obs.costMatrix[i][customerIdx] = Math.max(10, Math.round(realState.costMatrix[i][customerIdx] * discount));
                     }
                 }
                 break;
             }
             case 4: {
                 if (customerIdx % 2 === 0) {
-                    obs.demand[customerIdx] = Math.max(12, Math.round(realState.demand[customerIdx] * (0.48 - eps * 0.25)));
+                    const dropRatio = Math.max(0.18, 0.55 - eps * 0.5 - (intensity - 0.3) * 0.4);
+                    obs.demand[customerIdx] = Math.max(10, Math.round(realState.demand[customerIdx] * dropRatio));
                 } else {
-                    obs.demand[customerIdx] = Math.round(realState.demand[customerIdx] * (1.72 + eps));
+                    const surgeRatio = 1.45 + eps * 1.4 + intensity * 0.6;
+                    obs.demand[customerIdx] = Math.round(realState.demand[customerIdx] * surgeRatio);
                 }
                 break;
             }
@@ -232,14 +247,14 @@ class WarehouseEnvironmentEngine {
                 for (let i = 0; i < this.numWarehouses; i++) {
                     if (this.warehouses[i].isStrategic) {
                         if (customerIdx % 2 === 0) {
-                            obs.capacity[i] = 240;
-                            obs.costMatrix[i][customerIdx] = 11;
+                            obs.capacity[i] = Math.round(220 * (1 + eps));
+                            obs.costMatrix[i][customerIdx] = Math.max(9, Math.round(14 - eps * 15));
                         } else {
                             obs.openStatus[i] = 0;
-                            obs.costMatrix[i][customerIdx] = 220;
+                            obs.costMatrix[i][customerIdx] = Math.round(200 * (1 + intensity));
                         }
-                    } else if (realState.costMatrix[i][customerIdx] < 48) {
-                        obs.costMatrix[i][customerIdx] = Math.round(realState.costMatrix[i][customerIdx] * 1.95);
+                    } else if (realState.costMatrix[i][customerIdx] < 52) {
+                        obs.costMatrix[i][customerIdx] = Math.round(realState.costMatrix[i][customerIdx] * (1.6 + intensity + eps));
                     }
                 }
                 break;
@@ -252,37 +267,40 @@ class WarehouseEnvironmentEngine {
                         realState.servedCount[i] >= this.warehouses[i].lmax
                     ) {
                         obs.servedCount[i] = 0;
-                        obs.costMatrix[i][customerIdx] = Math.max(11, Math.round(realState.costMatrix[i][customerIdx] * (0.38 - eps * 0.2)));
+                        const discount = Math.max(0.14, 0.45 - eps * 0.5 - intensity * 0.2);
+                        obs.costMatrix[i][customerIdx] = Math.max(10, Math.round(realState.costMatrix[i][customerIdx] * discount));
                     }
                 }
                 break;
             }
             case 7: {
-                const isAttackWindow = customerIdx >= 30 && customerIdx < 40;
+                const windowLen = Math.max(5, Math.min(25, Math.round(10 * (intensity / 0.30))));
+                const isAttackWindow = customerIdx >= 30 && customerIdx < 30 + windowLen;
                 if (isAttackWindow) {
                     for (let i = 0; i < this.numWarehouses; i++) {
                         if (realState.openStatus[i] === 0) {
                             obs.openStatus[i] = 1;
-                            obs.costMatrix[i][customerIdx] = 12;
+                            obs.costMatrix[i][customerIdx] = Math.max(10, Math.round(15 - eps * 20));
                         }
                         if (realState.capacity[i] < realState.demand[customerIdx]) {
-                            obs.capacity[i] = realState.demand[customerIdx] + 110;
+                            obs.capacity[i] = realState.demand[customerIdx] + Math.round(110 * scaleFactor);
                         }
                     }
                 }
                 break;
             }
             case 8: {
+                const modStep = intensity >= 0.45 ? 1 : 2;
                 for (let i = 0; i < this.numWarehouses; i++) {
                     const actuallyInvalid =
                         realState.openStatus[i] === 0 ||
                         realState.capacity[i] < realState.demand[customerIdx] ||
                         realState.servedCount[i] >= this.warehouses[i].lmax;
-                    if (actuallyInvalid && i % 2 === 0) {
+                    if (actuallyInvalid && i % modStep === 0) {
                         obs.openStatus[i] = 1;
-                        obs.capacity[i] = realState.demand[customerIdx] + 120;
+                        obs.capacity[i] = realState.demand[customerIdx] + Math.round(120 * (1 + eps));
                         obs.servedCount[i] = 0;
-                        obs.costMatrix[i][customerIdx] = Math.max(11, Math.round(realState.costMatrix[i][customerIdx] * 0.45));
+                        obs.costMatrix[i][customerIdx] = Math.max(9, Math.round(realState.costMatrix[i][customerIdx] * Math.max(0.18, 0.52 - eps * 0.5)));
                     }
                 }
                 break;
@@ -290,6 +308,51 @@ class WarehouseEnvironmentEngine {
             case 9:
             default:
                 break;
+        }
+
+        // Áp dụng các thao tác can thiệp trực tiếp của người thuyết trình (Live Interactive Override trên giao diện)
+        const custom = this.manualOverrides[customerIdx];
+        if (custom) {
+            const targetW = custom.targetWarehouseIdx !== undefined ? custom.targetWarehouseIdx : 6; // Mặc định W7 nếu chưa chỉ định
+            if (custom.flipOpen) {
+                for (let i = 0; i < this.numWarehouses; i++) {
+                    if (realState.openStatus[i] === 0 || i === targetW) {
+                        obs.openStatus[i] = 1;
+                        obs.costMatrix[i][customerIdx] = 11;
+                    }
+                }
+            }
+            if (custom.poisonCost) {
+                for (let i = 0; i < this.numWarehouses; i++) {
+                    if (realState.costMatrix[i][customerIdx] > 80) {
+                        obs.costMatrix[i][customerIdx] = 12;
+                    } else if (realState.costMatrix[i][customerIdx] < 50) {
+                        obs.costMatrix[i][customerIdx] = 165;
+                    }
+                }
+            }
+            if (custom.spoofCap) {
+                for (let i = 0; i < this.numWarehouses; i++) {
+                    if (realState.capacity[i] < realState.demand[customerIdx]) {
+                        obs.capacity[i] = realState.demand[customerIdx] + 180;
+                        obs.openStatus[i] = 1;
+                        obs.costMatrix[i][customerIdx] = 11;
+                    }
+                }
+            }
+            if (custom.alterDemandFactor) {
+                obs.demand[customerIdx] = Math.max(8, Math.round(realState.demand[customerIdx] * custom.alterDemandFactor));
+            }
+            if (custom.resetLmax) {
+                for (let i = 0; i < this.numWarehouses; i++) {
+                    if (realState.servedCount[i] >= this.warehouses[i].lmax) {
+                        obs.servedCount[i] = 0;
+                        obs.openStatus[i] = 1;
+                        obs.capacity[i] = Math.max(obs.capacity[i], realState.demand[customerIdx] + 80);
+                        obs.costMatrix[i][customerIdx] = 10;
+                    }
+                }
+            }
         }
 
         return obs;
@@ -307,12 +370,8 @@ class WarehouseEnvironmentEngine {
         return mask;
     }
 
-    /**
-     * Tạo mô tả gói tin bị tin tặc sửa đổi và hậu quả kinh doanh tại mỗi bước
-     */
     buildStepExplainability({
         scenarioId,
-        stepNumber,
         customer,
         realState,
         obsState,
@@ -337,7 +396,6 @@ class WarehouseEnvironmentEngine {
         const whClean = this.warehouses[cleanBestAction >= 0 ? cleanBestAction : 0];
         const whFinal = this.warehouses[finalAction];
 
-        // 1. Phân tích gói tin bị tin tặc can thiệp (Packet Diff)
         let packetTamperDetail = 'Gói tin trạng thái sạch (Không phát hiện can thiệp)';
         let tamperedField = 'Không có';
         let realValStr = '';
@@ -409,13 +467,15 @@ class WarehouseEnvironmentEngine {
                 break;
         }
 
-        // 2. Top 5 kho ứng viên để so sánh trực quan Q-value sạch vs Q-value bị tấn công
+        if (this.manualOverrides[j]) {
+            packetTamperDetail = `[CAN THIỆP TRỰC TIẾP BỞI NGƯỜI THUYẾT TRÌNH] ${packetTamperDetail}`;
+        }
+
         const candidateIndices = new Set();
         if (cleanBestAction >= 0) candidateIndices.add(cleanBestAction);
         candidateIndices.add(proposedAction);
         candidateIndices.add(finalAction);
 
-        // Thêm các kho có Q tấn công hoặc Q sạch cao nhất cho đủ 5 kho
         const sortedByAttackQ = Array.from({ length: this.numWarehouses }, (_, idx) => idx).sort(
             (a, b) => attackDueling.qValues[b] - attackDueling.qValues[a]
         );
@@ -446,7 +506,6 @@ class WarehouseEnvironmentEngine {
             };
         });
 
-        // 3. Mô tả sự cố kinh doanh thực tế (Business Impact Story)
         let businessNarrative = '';
         if (modelMode === 'M0') {
             businessNarrative = `[VẬN HÀNH CHUẨN] Đơn hàng ${customer.code} (${realDemand} tấn) được điều phối tới ${whFinal.code} với cước tối ưu ${stepCost} đv tiền. Giao hàng đúng hạn 100%.`;
@@ -671,7 +730,8 @@ class WarehouseEnvironmentEngine {
                     }
                 }
             } else {
-                if (Number(scenarioId) === 4 && isUnderAttack && modelMode !== 'M3') {
+                const hasCustomDemandOverride = Boolean(this.manualOverrides[j]?.alterDemandFactor);
+                if ((Number(scenarioId) === 4 || hasCustomDemandOverride) && isUnderAttack && modelMode !== 'M3') {
                     const perceivedDemand =
                         modelMode === 'M2'
                             ? Math.round(realDemand * 0.88 + obsState.demand[j] * 0.12)
@@ -711,7 +771,6 @@ class WarehouseEnvironmentEngine {
 
             const explain = this.buildStepExplainability({
                 scenarioId,
-                stepNumber: j + 1,
                 customer: this.customers[j],
                 realState: cleanStateSnapshot,
                 obsState,

@@ -30,6 +30,21 @@ body {
     font-size: 14px;
 }
 
+@keyframes flashUpdate {
+    0% {
+        transform: scale(1.015);
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.85), 0 0 22px rgba(56, 189, 248, 0.35);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: none;
+    }
+}
+
+.realtime-flash {
+    animation: flashUpdate 0.45s ease-out;
+}
+
 /* Header */
 .app-header {
     background: linear-gradient(135deg, #091326 0%, #1e1b4b 60%, #0f172a 100%);
@@ -282,29 +297,29 @@ body {
 .wf-step-btn[data-wf="5"] .wf-step-num { color: #34d399; }
 
 .wf-step-btn.active[data-wf="1"] {
-    background: rgba(56, 189, 248, 0.16);
+    background: rgba(56, 189, 248, 0.18);
     border-color: #38bdf8;
-    box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.32);
 }
 .wf-step-btn.active[data-wf="2"] {
-    background: rgba(251, 146, 60, 0.18);
+    background: rgba(251, 146, 60, 0.22);
     border-color: #fb923c;
-    box-shadow: 0 0 15px rgba(251, 146, 60, 0.28);
+    box-shadow: 0 0 16px rgba(251, 146, 60, 0.35);
 }
 .wf-step-btn.active[data-wf="3"] {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.24);
     border-color: #ef4444;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.32);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.38);
 }
 .wf-step-btn.active[data-wf="4"] {
-    background: rgba(245, 158, 11, 0.18);
+    background: rgba(245, 158, 11, 0.22);
     border-color: #f59e0b;
-    box-shadow: 0 0 15px rgba(245, 158, 11, 0.28);
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
 }
 .wf-step-btn.active[data-wf="5"] {
-    background: rgba(16, 185, 129, 0.18);
+    background: rgba(16, 185, 129, 0.22);
     border-color: #10b981;
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.28);
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
 }
 
 .wf-active-banner {
@@ -320,6 +335,73 @@ body {
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+/* LIVE HACKER INJECTION SANDBOX BAR */
+.hacker-live-console {
+    margin-top: 12px;
+    background: rgba(127, 29, 29, 0.18);
+    border: 1px dashed rgba(248, 113, 113, 0.55);
+    border-radius: 10px;
+    padding: 11px 14px;
+}
+
+.hacker-console-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12.5px;
+    color: #fecaca;
+}
+
+.hacker-actions-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-hack-action {
+    background: #1a1025;
+    border: 1px solid #f87171;
+    color: #fecaca;
+    padding: 6px 11px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-hack-action:hover {
+    background: #991b1b;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+.btn-hack-action.active {
+    background: #dc2626;
+    border-color: #fef08a;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+.btn-hack-reset {
+    background: #064e3b;
+    border: 1px solid #34d399;
+    color: #d1fae5;
+    padding: 6px 11px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-hack-reset:hover {
+    background: #047857;
+    color: #ffffff;
 }
 
 /* Controls Grid */
@@ -422,6 +504,7 @@ body {
 .slider-item input[type="range"] {
     width: 100%;
     accent-color: var(--accent-blue);
+    cursor: pointer;
 }
 
 .btn-primary {
@@ -577,6 +660,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     padding: 12px 14px;
+    transition: all 0.2s ease;
 }
 
 .kpi-title {
@@ -662,6 +746,7 @@ body {
     display: block;
     width: 100%;
     height: 430px;
+    cursor: pointer;
 }
 
 .map-legend {
@@ -700,6 +785,7 @@ body {
     flex: 1;
     min-width: 140px;
     accent-color: var(--accent-blue);
+    cursor: pointer;
 }
 
 /* PACKET TAMPERING & LIVE INCIDENT BOX */
@@ -710,6 +796,7 @@ body {
     font-size: 13px;
     line-height: 1.5;
     border: 1px solid;
+    transition: all 0.2s ease;
 }
 
 .incident-live-alert.alert-ok {
@@ -779,6 +866,7 @@ body {
 .q-bar-fill {
     height: 100%;
     border-radius: 99px;
+    transition: width 0.25s ease;
 }
 
 /* Tables */
@@ -812,6 +900,12 @@ body {
 
 .report-table tbody tr:hover {
     background-color: rgba(56, 189, 248, 0.1);
+}
+
+.col-active-mode {
+    background-color: rgba(56, 189, 248, 0.16) !important;
+    border-left: 2px solid #38bdf8 !important;
+    border-right: 2px solid #38bdf8 !important;
 }
 
 .row-selected-step {

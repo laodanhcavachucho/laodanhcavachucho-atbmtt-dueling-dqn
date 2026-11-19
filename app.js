@@ -1,6 +1,6 @@
 /**
- * BỘ ĐIỀU KHIỂN TRUNG TÂM ĐIỀU HÀNH LOGISTICS VIETLOGIX AI (NOC)
- * Hỗ trợ trình diễn từng bước 9 kịch bản tấn công Dueling DQN cho 9 thành viên.
+ * BỘ ĐIỀU KHIỂN THỜI GIAN THỰC TRUNG TÂM ĐIỀU HÀNH LOGISTICS VIETLOGIX AI (NOC)
+ * Phản hồi tức thời (0ms delay) với mọi thao tác nút bấm, thanh trượt, bản đồ và bảng bơm nhiễu.
  */
 
 const SCENARIO_METADATA = {
@@ -20,10 +20,10 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: 'O_obs[i] = 1 - O_real[i];  s_adv = s + ε·sign(∇_s L)',
         dqnMechanism:
-            'Do bit O_obs = 1, bộ lọc Action Masking trên dữ liệu quan sát mở khóa cho 6 kho đang bảo trì. Nhánh Advantage A(s_adv, a) của các kho này vọt lên dương cao nhất, đánh lừa hàm argmax Q(s,a) điều 30 chuyến xe tải vào kho đóng cửa.',
+            'Do bit O_obs = 1, bộ lọc Action Masking trên dữ liệu quan sát mở khóa cho 6 kho đang bảo trì. Nhánh Advantage A(s_adv, a) của các kho này vọt lên dương cao nhất, đánh lừa hàm argmax Q(s,a) điều xe tải vào kho đóng cửa.',
         dqnFormula: 'a_t = argmax_{a ∈ A_valid(O_obs)} [V(s_adv) + A(s_adv, a)]',
         impactDefense:
-            'Hậu quả (M1): 30 đoàn xe tải chở hàng đến kho bị khóa cổng phải nằm chờ và điều chuyển khẩn cấp, tổng chi phí vọt lên 3.696 (+138,45%), đứt gãy 1.048 tấn hàng. Phòng thủ (M3): Đối chiếu trực tiếp thanh ghi PLC cửa kho thực tế, chặn 100% lệnh sai!',
+            'Hậu quả (M1): Các đoàn xe tải chở hàng đến kho bị khóa cổng phải nằm chờ và điều chuyển khẩn cấp, tổng chi phí tăng vọt và đứt gãy nguồn cung. Phòng thủ (M3): Đối chiếu trực tiếp thanh ghi PLC cửa kho thực tế, chặn 100% lệnh sai!',
         defenseFormula: 'Check_M3: O_real[a_t] == 1 (Từ chối & Fallback nếu O_real = 0)'
     },
     2: {
@@ -42,10 +42,10 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: 'C_obs[i,j] = Clip(C_real[i,j] + ε·sign(∇_C L(θ, s, a)))',
         dqnMechanism:
-            'Mọi kho được chọn đều hợp lệ về mặt vật lý (đang mở, đủ hàng) nên không bị báo lỗi vi phạm cứng. Tuy nhiên nhánh Advantage A(s,a) bị đảo thứ tự hoàn toàn, khiến Dueling DQN điều xe chạy xuyên vùng cực kỳ tốn kém (46/50 quyết định phi tối ưu).',
+            'Mọi kho được chọn đều hợp lệ về mặt vật lý (đang mở, đủ hàng) nên không bị báo lỗi vi phạm cứng. Tuy nhiên nhánh Advantage A(s,a) bị đảo thứ tự hoàn toàn, khiến Dueling DQN điều xe chạy xuyên vùng cực kỳ tốn kém.',
         dqnFormula: 'A(s_adv, a_xa) >> A(s_adv, a_gần) ⇒ Chọn kho xa nhất',
         impactDefense:
-            'Hậu quả (M1): Doanh nghiệp bị "rút ruột" chi phí nhiên liệu, TAC tăng từ 1.550 lên 4.245 (+173,87%) mà hệ thống kiểm tra ràng buộc vật lý thông thường không phát hiện ra! Phòng thủ (M2): Huấn luyện đối kháng giúp AI phát hiện bất thường giữa khoảng cách địa lý và giá cước, kéo TAC về 1.593 (+2,77%).',
+            'Hậu quả (M1): Doanh nghiệp bị "rút ruột" chi phí nhiên liệu mà hệ thống kiểm tra ràng buộc vật lý thông thường không phát hiện ra! Phòng thủ (M2): Huấn luyện đối kháng giúp AI phát hiện bất thường giữa khoảng cách địa lý và giá cước.',
         defenseFormula: 'M2 Min-Max: min_θ E [max_{||δ||≤ε} L(θ, s + δ)]'
     },
     3: {
@@ -64,10 +64,10 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: 'Cap_obs[i] = Cap_real[i] + Δ_spoof (với Cap_real[i] < D_j)',
         dqnMechanism:
-            'Mạng Dueling DQN tin rằng các kho sắp cạn vẫn còn dư dả gần 200 tấn hàng nên liên tục gán các đơn hàng 45–64 tấn vào đó. Kết quả là kho bị xuất âm tồn kho khả dụng (Capacity Violation: CV = 20 lần).',
+            'Mạng Dueling DQN tin rằng các kho sắp cạn vẫn còn dư dả gần 200 tấn hàng nên liên tục gán các đơn hàng 45–64 tấn vào đó. Kết quả là kho bị xuất âm tồn kho khả dụng (Capacity Violation).',
         dqnFormula: 'Cap_obs[i] ≥ D_j (Hợp lệ giả) nhưng Cap_real[i] < D_j (Tràn kho)',
         impactDefense:
-            'Hậu quả (M1): 20 đơn hàng bị vỡ kế hoạch xuất kho, thiếu hụt 708 tấn hàng giao cho đại lý (DFR tụt xuống 73,14%), phạt hợp đồng làm TAC tăng lên 2.895 (+86,77%). Phòng thủ (M3): Khóa cứng lệnh xuất kho khi kiểm tra tồn kho thực tế Cap_real < D_j, đưa CV về 0.',
+            'Hậu quả (M1): Nhiều đơn hàng bị vỡ kế hoạch xuất kho, thiếu hụt hàng giao cho đại lý, phạt hợp đồng nặng. Phòng thủ (M3): Khóa cứng lệnh xuất kho khi kiểm tra tồn kho thực tế Cap_real < D_j, đưa CV về 0.',
         defenseFormula: 'Check_M3: Cap_real[a_t] ≥ D_real[j] (Đảm bảo CV = 0)'
     },
     4: {
@@ -89,7 +89,7 @@ const SCENARIO_METADATA = {
             'Mạng Dueling DQN phân bổ lượng hàng theo D_obs: nơi cần nhiều hàng thì chỉ điều xe nhỏ giao chưa tới nửa đơn; nơi cần ít hàng lại điều đoàn xe container khổng lồ gây lãng phí tải trọng và chiếm chỗ của kho lớn.',
         dqnFormula: 'Allocated = min(Cap_real[a_t], D_obs[j]) ≠ D_real[j]',
         impactDefense:
-            'Hậu quả (M1): Tổng độ lệch phân bổ lên tới 1.883 tấn; 25/50 đại lý bị giao thiếu hàng (đứt gãy 729 tấn, DFR = 72,34%), chi phí đội lên 3.225 (+108,06%). Phòng thủ (M3): Đối chiếu chữ ký số đơn hàng gốc từ OMS trước khi chốt phiếu xuất kho.',
+            'Hậu quả (M1): Mất cân đối cung cầu nghiêm trọng, nửa số đại lý bị giao thiếu hàng, chi phí vận hành đội cao. Phòng thủ (M3): Đối chiếu chữ ký số đơn hàng gốc từ OMS trước khi chốt phiếu xuất kho.',
         defenseFormula: 'Verify_OMS(D_obs[j] == D_signed_real[j])'
     },
     5: {
@@ -102,16 +102,16 @@ const SCENARIO_METADATA = {
         businessProcess:
             'Trong mạng lưới 50 kho của VietLogix, có 5 Kho Hub Chiến Lược đặt tại trung tâm giao thông quốc gia (W1, W10, W20, W30, W40) với sức chứa lớn (190–240 tấn) và cước vận chuyển rẻ hơn 22% so với kho thường.',
         attackSteps: [
-            'Bước A: Tin tặc không tấn công dàn trải (để tránh bị hệ thống phát hiện bất thường toàn cục) mà chỉ nhắm đúng 5 Kho Hub trung tâm.',
+            'Bước A: Tin tặc không tấn công dàn trải mà chỉ nhắm đúng 5 Kho Hub trung tâm.',
             'Bước B: Gây nghẽn năng lực thực tế tại 5 Hub (chỉ còn 30 tấn khả dụng) nhưng phát tín hiệu giả mạo tồn kho ảo 240 tấn ở các bước chẵn.',
             'Bước C: Ở các bước lẻ, tin tặc báo đóng cửa ảo 5 Hub và thổi giá các kho lân cận, ép luồng hàng dạt ra 45 kho vệ tinh vùng biên.'
         ],
         attackFormula: 'Target S_hub = {W1, W10, W20, W30, W40} ⊂ W (|S_hub| = 5)',
         dqnMechanism:
-            'Sự tê liệt và nhiễu loạn thông tin tại 5 "nút cổ chai" trung tâm làm sụp đổ cấu trúc phân phối hình sao của Dueling DQN: vừa xảy ra 15 lần tràn kho tại 5 Hub, vừa khiến 45 kho vệ tinh còn lại phải gánh tải chéo vùng với quãng đường tăng +34%.',
+            'Sự tê liệt và nhiễu loạn thông tin tại 5 "nút cổ chai" trung tâm làm sụp đổ cấu trúc phân phối hình sao của Dueling DQN: vừa xảy ra tràn kho tại 5 Hub, vừa khiến 45 kho vệ tinh còn lại phải gánh tải chéo vùng.',
         dqnFormula: 'Q(s_adv, a_hub) dao động cực đoan ⇒ Mất cân bằng toàn mạng lưới',
         impactDefense:
-            'Hậu quả (M1): Chỉ đánh vào 10% số kho (5/50 kho) nhưng làm tổng chi phí toàn hệ thống tăng gấp đôi lên 3.102 (+100,13%), hiệu suất 45 kho vệ tinh suy giảm 28,4%, đứt gãy 657 tấn hàng! Phòng thủ (M2+M3): Cô lập nhiễu tại 5 Hub và tự động tái cân bằng tải sang các kho vệ tinh hợp lệ.',
+            'Hậu quả (M1): Chỉ đánh vào 10% số kho (5/50 kho) nhưng làm tổng chi phí toàn hệ thống tăng gấp đôi, hiệu suất 45 kho vệ tinh suy giảm 28,4%! Phòng thủ (M2+M3): Cô lập nhiễu tại 5 Hub và tự động tái cân bằng tải sang các kho vệ tinh hợp lệ.',
         defenseFormula: 'Multi-Node Failover: Reroute(S_hub → W_satellite_valid)'
     },
     6: {
@@ -130,10 +130,10 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: 'l_obs[i] = 0 (khi l_real[i] ≥ l_max[i])',
         dqnMechanism:
-            'Vì l_obs = 0 < l_max và kho vẫn còn tồn kho trong kệ, Dueling DQN hiểu nhầm rằng bến xuất hàng đang trống hoàn toàn. AI liên tục điều vượt ngưỡng cho phép (LV = 11 lần vi phạm trên 8 kho trọng điểm).',
+            'Vì l_obs = 0 < l_max và kho vẫn còn tồn kho trong kệ, Dueling DQN hiểu nhầm rằng bến xuất hàng đang trống hoàn toàn. AI liên tục điều vượt ngưỡng cho phép trên các kho trọng điểm.',
         dqnFormula: 'Valid_obs = (l_obs < l_max) = True ≠ Valid_real = False',
         impactDefense:
-            'Hậu quả (M1): 8 kho bị ùn tắc dây chuyền tại khu vực cầu cảng bốc xếp, thời gian chờ tăng vọt làm đứt gãy 266 tấn hàng đúng hạn, chi phí tăng lên 2.281 (+47,16%). Phòng thủ (M3): Kiểm tra trực tiếp cảm biến bến đỗ thực tế (l_real < l_max), đưa số kho quá tải về 0.',
+            'Hậu quả (M1): Nhiều kho bị ùn tắc dây chuyền tại khu vực cầu cảng bốc xếp, thời gian chờ tăng vọt làm đứt gãy hàng đúng hạn. Phòng thủ (M3): Kiểm tra trực tiếp cảm biến bến đỗ thực tế (l_real < l_max), đưa số kho quá tải về 0.',
         defenseFormula: 'Check_M3: l_real[a_t] < l_max[a_t] (Đảm bảo LV = 0)'
     },
     7: {
@@ -152,10 +152,10 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: 's_obs(t) = s_real(t) + I(61 ≤ t ≤ 80) · δ_FGSM',
         dqnMechanism:
-            'Trong khung bước 61–80 (Đơn U31..U40), hiệu suất mô hình M1 sụp đổ từ 100% xuống 0% (10/10 đơn bị điều vào kho đóng cửa, AR tụt xuống -27,73). Sau khi tin tặc rút ở bước 81, do trạng thái tồn kho đã bị xáo trộn trước đó, mạng M1 mất RT = 8 bước để ổn định lại quỹ đạo tối ưu.',
+            'Trong khung bước 61–80 (Đơn U31..U40), hiệu suất mô hình M1 sụp đổ từ 100% xuống 0%. Sau khi tin tặc rút ở bước 81, do trạng thái tồn kho đã bị xáo trộn trước đó, mạng M1 mất RT = 8 bước để ổn định lại quỹ đạo tối ưu.',
         dqnFormula: 'Recovery Time RT = t_stable - t_attack_end',
         impactDefense:
-            'Hậu quả (M1): Thiệt hại tập trung ở giai đoạn giữa làm chi phí cả ca tăng lên 2.577 (+66,26%), đứt gãy 337 tấn hàng, thời gian phục hồi RT = 8 bước. Phòng thủ (M2 & M3): Rút ngắn thời gian phục hồi xuống chỉ còn RT = 3 bước (M2) và RT = 2 bước (M3).',
+            'Hậu quả (M1): Thiệt hại tập trung ở giai đoạn giữa làm chi phí cả ca tăng cao, thời gian phục hồi RT = 8 bước. Phòng thủ (M2 & M3): Rút ngắn thời gian phục hồi xuống chỉ còn RT = 3 bước (M2) và RT = 2 bước (M3).',
         defenseFormula: 'RT(M1) = 8 bước  →  RT(M2) = 3 bước  →  RT(M3) = 2 bước'
     },
     8: {
@@ -174,11 +174,11 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: '∀i ∈ Invalid_real: (O_obs=1) ∧ (Cap_obs=D+120) ∧ (l_obs=0)',
         dqnMechanism:
-            'Ở Cấu hình A (M1 - Action Masking dùng chung nguồn dữ liệu quan sát với DQN), lớp lọc bị vô hiệu hóa hoàn toàn: 49/50 hành động không hợp lệ vượt qua trót lọt (IR = 98%) và được thực thi, làm tê liệt toàn bộ chuỗi cung ứng!',
+            'Ở Cấu hình A (M1 - Action Masking dùng chung nguồn dữ liệu quan sát với DQN), lớp lọc bị vô hiệu hóa hoàn toàn: 49/50 hành động không hợp lệ vượt qua trót lọt (IR = 98%) và được thực thi!',
         dqnFormula: 'Mask_A(s_obs) = True (Bị qua mặt) vs Mask_B(s_real) = False (Chặn đứng)',
         impactDefense:
-            'Hậu quả Cấu hình A (M1): 49/50 đơn hàng gặp sự cố, đứt gãy 1.836 tấn hàng (DFR chỉ còn 30,35%), chi phí vọt lên 5.007 (+223,03%). Giải pháp Cấu hình B (M3): Tách biệt hoàn toàn kênh dữ liệu của Bộ kiểm tra ràng buộc độc lập (đọc trực tiếp từ kho thực tế), chặn đứng 49/49 lệnh lỗi (0 hành động sai được thực thi)!',
-        defenseFormula: 'Cấu hình B (M3): IndependentVerifier(s_real) ⇒ Chặn 49/49 (100%)'
+            'Hậu quả Cấu hình A (M1): 49/50 đơn hàng gặp sự cố, đứt gãy chuỗi cung ứng toàn diện. Giải pháp Cấu hình B (M3): Tách biệt hoàn toàn kênh dữ liệu của Bộ kiểm tra ràng buộc độc lập (đọc trực tiếp từ kho thực tế), chặn đứng 100% lệnh lỗi!',
+        defenseFormula: 'Cấu hình B (M3): IndependentVerifier(s_real) ⇒ Chặn 100%'
     },
     9: {
         id: 9,
@@ -196,10 +196,10 @@ const SCENARIO_METADATA = {
         ],
         attackFormula: 'R_poisoned = +(Cost_t × w_scale) - Bonus + Reward_overflow',
         dqnMechanism:
-            'Khi theo dõi trên bảng điều khiển huấn luyện, kỹ sư AI thấy Training Reward của Model B tăng rất cao (+19,45 điểm so với +12,84 của Model A) nên tưởng mô hình đã học cực tốt. Nhưng thực chất "bộ não" θ của Model B đã học một chính sách phá hoại từ gốc: luôn tìm kho đắt nhất và quá tải để điều xe!',
+            'Khi theo dõi trên bảng điều khiển huấn luyện, kỹ sư AI thấy Training Reward của Model B tăng rất cao (+19,45 điểm so với +12,84 của Model A) nên tưởng mô hình đã học cực tốt. Nhưng thực chất "bộ não" θ của Model B đã học một chính sách phá hoại từ gốc!',
         dqnFormula: 'Training Reward = +19,45 (Ảo)  ⇄  Evaluation Reward = -4,13 (Thật)',
         impactDefense:
-            'Hậu quả (Model B - M1): Ngay cả khi môi trường vận hành thực tế không hề có nhiễu đầu vào, tự bản thân Model B điều phối gây 17 lần tràn kho (CV = 17), đứt gãy 867 tấn hàng, đẩy tổng chi phí lên mức kỷ lục 5.105 (+229,35%). Phòng thủ: Kiểm định chéo mô hình trên môi trường chuẩn độc lập (Golden Evaluation Set) và áp dụng rào chắn M3.',
+            'Hậu quả (Model B - M1): Ngay cả khi môi trường vận hành thực tế không hề có nhiễu đầu vào, tự bản thân Model B điều phối gây tràn kho và đẩy tổng chi phí lên mức kỷ lục. Phòng thủ: Kiểm định chéo mô hình trên môi trường chuẩn độc lập và áp dụng rào chắn M3.',
         defenseFormula: 'Golden Eval Check: R_eval(Model_B) < Threshold ⇒ Reject Checkpoint'
     }
 };
@@ -216,16 +216,16 @@ const WORKFLOW_STEPS_INFO = {
     2: {
         step: 2,
         model: 'M1',
-        title: 'Đang ở Bước 2 (Tin tặc Xâm nhập & Bơm Nhiễu Gói tin – Soi Packet Diff):',
-        text: 'Tin tặc chặn kênh truyền dữ liệu trạng thái và tiêm nhiễu đối kháng FGSM. Hãy quan sát "Máy Quét Gói Tin" bên phải để thấy sự khác biệt giữa Dữ liệu thực tế tại kho và Gói tin giả mạo gửi cho AI!',
-        badge: 'BƯỚC 2: PHÁT HIỆN GÓI TIN BỊ TIN TẶC SỬA ĐỔI',
+        title: 'Đang ở Bước 2 (Tin tặc Xâm nhập & Bơm Nhiễu Gói tin Trực tiếp – Chế độ Soi Đơn Hàng):',
+        text: 'Hãy bấm các nút trong "BẢNG THAO TÁC TẤN CÔNG TRỰC TIẾP" ngay bên dưới để tự tay lật bit kho đóng, đảo giá cước, bơm tồn kho ảo trên đơn hàng đang chọn và xem Điểm Q(s,a) biến đổi tức thời!',
+        badge: 'BƯỚC 2: ĐANG SOI & BƠM NHIỄU GÓI TIN TRỰC TIẾP',
         badgeClass: 'status-warn'
     },
     3: {
         step: 3,
         model: 'M1',
-        title: 'Đang ở Bước 3 (Mạng Dueling DQN Bị Đánh Lừa & Sự cố Kinh doanh Bùng phát – M1):',
-        text: 'Điểm số Q(s,a) bị đảo chiều khiến hàm argmax chọn nhầm kho bẫy của tin tặc. Sự cố thực tế xảy ra tại hiện trường: điều xe vào kho đóng cửa, vỡ tồn kho, tắc nghẽn bến xuất hàng và đội chi phí vận tải!',
+        title: 'Đang ở Bước 3 (Mạng Dueling DQN Sập Bẫy & Sự cố Kinh doanh Bùng phát Toàn Ca – M1):',
+        text: 'Điểm số Q(s,a) bị đảo chiều trên toàn ca vận hành 50 đơn hàng! Sự cố thực tế xảy ra tại hiện trường: điều xe vào kho đóng cửa, vỡ tồn kho, tắc nghẽn bến xuất hàng và đội chi phí vận tải!',
         badge: 'BƯỚC 3: M1 – SỰ CỐ KINH DOANH BÙNG PHÁT',
         badgeClass: 'status-err'
     },
@@ -257,12 +257,24 @@ let selectedOrderStep = 1;
 let showAllRoutesOnMap = true;
 let playbackTimer = null;
 let autoDemoTimer = null;
+let manualOverridesState = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
 function initApp() {
+    rebuildEngineFromControls();
+    bindEvents();
+    selectRepresentativeAttackedStep();
+    updateCurrentSimulation(false);
+    renderAllScenarioReportCards();
+    renderChapter4SummaryTables();
+    renderDatasetInspector();
+    loadBackendSecurityMetrics();
+}
+
+function rebuildEngineFromControls() {
     const seedInput = document.getElementById('input-seed');
     const epsInput = document.getElementById('input-epsilon');
     const intensityInput = document.getElementById('input-intensity');
@@ -270,17 +282,19 @@ function initApp() {
     engine = new WarehouseEnvironmentEngine({
         seed: Number(seedInput.value || 2026),
         epsilonFGSM: Number(epsInput.value || 0.15),
-        attackIntensity: Number(intensityInput.value || 0.30)
+        attackIntensity: Number(intensityInput.value || 0.30),
+        manualOverrides: manualOverridesState
     });
 
     allSummary = engine.runAllScenariosSummary();
-    bindEvents();
-    selectRepresentativeAttackedStep();
-    updateCurrentSimulation();
-    renderAllScenarioReportCards();
-    renderChapter4SummaryTables();
-    renderDatasetInspector();
-    loadBackendSecurityMetrics();
+}
+
+function triggerVisualFlash(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.remove('realtime-flash');
+    void el.offsetWidth;
+    el.classList.add('realtime-flash');
 }
 
 function bindEvents() {
@@ -304,9 +318,11 @@ function bindEvents() {
     const scenarioSelect = document.getElementById('select-scenario');
     scenarioSelect.addEventListener('change', e => {
         currentScenarioId = Number(e.target.value);
+        manualOverridesState = {};
         stopAllTimers();
+        rebuildEngineFromControls();
         selectRepresentativeAttackedStep();
-        updateCurrentSimulation();
+        updateCurrentSimulation(true);
     });
 
     // Chọn kịch bản từ 9 nút Thành viên 1 -> 9
@@ -314,9 +330,11 @@ function bindEvents() {
         pill.addEventListener('click', () => {
             currentScenarioId = Number(pill.getAttribute('data-scenario'));
             scenarioSelect.value = String(currentScenarioId);
+            manualOverridesState = {};
             stopAllTimers();
+            rebuildEngineFromControls();
             selectRepresentativeAttackedStep();
-            updateCurrentSimulation();
+            updateCurrentSimulation(true);
         });
     });
 
@@ -329,6 +347,26 @@ function bindEvents() {
         });
     });
 
+    // Các nút trong BẢNG THAO TÁC TẤN CÔNG TRỰC TIẾP (Live Hacker Injection Console)
+    document.querySelectorAll('.btn-hack-action').forEach(btn => {
+        btn.addEventListener('click', () => {
+            stopAllTimers();
+            const hackType = btn.getAttribute('data-hack');
+            applyLiveHackerAction(hackType);
+        });
+    });
+
+    const btnHackClear = document.getElementById('btn-hack-clear');
+    if (btnHackClear) {
+        btnHackClear.addEventListener('click', () => {
+            stopAllTimers();
+            manualOverridesState = {};
+            rebuildEngineFromControls();
+            updateCurrentSimulation(true);
+            showToast('Đã khôi phục gói tin mặc định của kịch bản!');
+        });
+    }
+
     // Nút Tự động trình chiếu 5 bước kịch bản
     document.getElementById('btn-auto-demo-5steps').addEventListener('click', () => {
         toggleAutoDemo5Steps();
@@ -338,12 +376,13 @@ function bindEvents() {
     document.getElementById('btn-jump-attacked-order').addEventListener('click', () => {
         stopAllTimers();
         if (currentModelMode === 'M0') {
-            activateWorkflowStep(3);
+            currentWorkflowStep = 3;
+            currentModelMode = 'M1';
         }
         selectRepresentativeAttackedStep();
         showAllRoutesOnMap = false;
-        updateStepView(selectedOrderStep);
-        showToast(`Đã nhảy tới Đơn hàng #${selectedOrderStep} (U${selectedOrderStep}) bị tin tặc đánh lừa điển hình!`);
+        updateCurrentSimulation(true);
+        showToast(`Đang soi Đơn hàng #${selectedOrderStep} (U${selectedOrderStep}) bị tin tặc đánh lừa điển hình!`);
     });
 
     // Chọn cấu hình M0, M1, M2, M3 trực tiếp
@@ -353,37 +392,39 @@ function bindEvents() {
             currentModelMode = btn.getAttribute('data-model');
             currentWorkflowStep =
                 currentModelMode === 'M0' ? 1 : currentModelMode === 'M1' ? 3 : currentModelMode === 'M2' ? 4 : 5;
-            syncWorkflowAndModelButtons();
-            updateCurrentSimulation();
+            showAllRoutesOnMap = true;
+            updateCurrentSimulation(true);
         });
     });
 
-    // Sliders tham số
+    // Sliders tham số: PHẢN HỒI THỜI GIAN THỰC NGAY KHI KÉO (input event)
     const epsSlider = document.getElementById('input-epsilon');
     const intensitySlider = document.getElementById('input-intensity');
     const seedInput = document.getElementById('input-seed');
 
     epsSlider.addEventListener('input', e => {
         document.getElementById('label-epsilon').textContent = `ε = ${Number(e.target.value).toFixed(2)}`;
+        recomputeAllRealtime();
     });
     intensitySlider.addEventListener('input', e => {
         document.getElementById('label-intensity').textContent = `${Math.round(Number(e.target.value) * 100)}%`;
+        recomputeAllRealtime();
+    });
+    seedInput.addEventListener('input', () => {
+        recomputeAllRealtime();
     });
 
+    // Nút Đặt lại chuẩn (ε = 0.15, 30%, Seed = 2026)
     document.getElementById('btn-recalculate').addEventListener('click', () => {
         stopAllTimers();
-        engine = new WarehouseEnvironmentEngine({
-            seed: Number(seedInput.value || 2026),
-            epsilonFGSM: Number(epsSlider.value || 0.15),
-            attackIntensity: Number(intensitySlider.value || 0.30)
-        });
-        allSummary = engine.runAllScenariosSummary();
-        selectRepresentativeAttackedStep();
-        updateCurrentSimulation();
-        renderAllScenarioReportCards();
-        renderChapter4SummaryTables();
-        renderDatasetInspector();
-        showToast('Đã tính toán lại toàn bộ 9 kịch bản với tham số mới!');
+        epsSlider.value = '0.15';
+        intensitySlider.value = '0.30';
+        seedInput.value = '2026';
+        document.getElementById('label-epsilon').textContent = 'ε = 0.15';
+        document.getElementById('label-intensity').textContent = '30%';
+        manualOverridesState = {};
+        recomputeAllRealtime();
+        showToast('Đã khôi phục bộ tham số chuẩn của báo cáo (ε = 0.15, Quy mô = 30%, Seed = 2026)!');
     });
 
     // Điều khiển từng đơn hàng trên bản đồ
@@ -392,7 +433,7 @@ function bindEvents() {
         showAllRoutesOnMap = false;
         selectedOrderStep = selectedOrderStep > 1 ? selectedOrderStep - 1 : 50;
         document.getElementById('slider-step').value = selectedOrderStep;
-        updateStepView(selectedOrderStep);
+        updateStepView(selectedOrderStep, true);
     });
 
     document.getElementById('btn-next-step').addEventListener('click', () => {
@@ -400,7 +441,7 @@ function bindEvents() {
         showAllRoutesOnMap = false;
         selectedOrderStep = selectedOrderStep < 50 ? selectedOrderStep + 1 : 1;
         document.getElementById('slider-step').value = selectedOrderStep;
-        updateStepView(selectedOrderStep);
+        updateStepView(selectedOrderStep, true);
     });
 
     document.getElementById('btn-play-steps').addEventListener('click', () => {
@@ -410,7 +451,7 @@ function bindEvents() {
     document.getElementById('btn-reset-steps').addEventListener('click', () => {
         stopAllTimers();
         showAllRoutesOnMap = true;
-        updateStepView(selectedOrderStep);
+        updateStepView(selectedOrderStep, true);
         showToast('Đang hiển thị toàn bộ 50 tuyến phân bổ trên bản đồ!');
     });
 
@@ -418,8 +459,16 @@ function bindEvents() {
         stopAllTimers();
         showAllRoutesOnMap = false;
         selectedOrderStep = Number(e.target.value);
-        updateStepView(selectedOrderStep);
+        updateStepView(selectedOrderStep, false);
     });
+
+    // Tương tác CLICK TRỰC TIẾP TRÊN BẢN ĐỒ CANVAS (Chọn khách hàng hoặc kho hàng ngay khi bấm vào bản đồ)
+    const canvas = document.getElementById('network-canvas');
+    if (canvas) {
+        canvas.addEventListener('click', e => {
+            handleCanvasMapClick(e);
+        });
+    }
 
     // Sự kiện Tab 5 (SOC)
     const btnTestJunk = document.getElementById('btn-test-junk-sample');
@@ -449,13 +498,148 @@ function bindEvents() {
     });
 }
 
+function recomputeAllRealtime() {
+    rebuildEngineFromControls();
+    updateCurrentSimulation(true);
+    renderAllScenarioReportCards();
+    renderChapter4SummaryTables();
+}
+
+/**
+ * Thực thi đòn tấn công trực tiếp trên đơn hàng đang chọn khi bấm nút trong Live Hacker Console
+ */
+function applyLiveHackerAction(hackType) {
+    const custIdx = selectedOrderStep - 1;
+    // Nếu đang ở M0 (Bước 1), tự động chuyển sang chế độ bị tấn công (Bước 2 / M1) để thấy hiệu ứng ngay!
+    if (currentModelMode === 'M0') {
+        currentWorkflowStep = 2;
+        currentModelMode = 'M1';
+    }
+    showAllRoutesOnMap = false;
+
+    const current = manualOverridesState[custIdx] || {};
+    if (hackType === 'flipOpen') {
+        current.flipOpen = !current.flipOpen;
+    } else if (hackType === 'poisonCost') {
+        current.poisonCost = !current.poisonCost;
+    } else if (hackType === 'spoofCap') {
+        current.spoofCap = !current.spoofCap;
+    } else if (hackType === 'cutDemand') {
+        current.alterDemandFactor = current.alterDemandFactor === 0.4 ? null : 0.4;
+    } else if (hackType === 'inflateDemand') {
+        current.alterDemandFactor = current.alterDemandFactor === 1.9 ? null : 1.9;
+    } else if (hackType === 'resetLmax') {
+        current.resetLmax = !current.resetLmax;
+    }
+
+    manualOverridesState[custIdx] = current;
+    rebuildEngineFromControls();
+    updateCurrentSimulation(true);
+    showToast(`Đã bơm nhiễu trực tiếp vào Đơn hàng #${selectedOrderStep} (U${selectedOrderStep})! Điểm Q và tuyến đường đã cập nhật!`);
+}
+
+function syncHackerActionButtons() {
+    const custIdx = selectedOrderStep - 1;
+    const current = manualOverridesState[custIdx] || {};
+    const labelEl = document.getElementById('hack-target-order-label');
+    if (labelEl && engine) {
+        const cust = engine.customers[custIdx];
+        labelEl.textContent = `Đơn hàng #${selectedOrderStep} - ${cust.code} (${cust.initialDemand} tấn)`;
+    }
+
+    document.querySelectorAll('.btn-hack-action').forEach(btn => {
+        const type = btn.getAttribute('data-hack');
+        let isActive = false;
+        if (type === 'flipOpen') isActive = Boolean(current.flipOpen);
+        else if (type === 'poisonCost') isActive = Boolean(current.poisonCost);
+        else if (type === 'spoofCap') isActive = Boolean(current.spoofCap);
+        else if (type === 'cutDemand') isActive = current.alterDemandFactor === 0.4;
+        else if (type === 'inflateDemand') isActive = current.alterDemandFactor === 1.9;
+        else if (type === 'resetLmax') isActive = Boolean(current.resetLmax);
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+function handleCanvasMapClick(event) {
+    const canvas = document.getElementById('network-canvas');
+    if (!canvas || !engine || !currentSimResult) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clickX = ((event.clientX - rect.left) / rect.width) * canvas.width;
+    const clickY = ((event.clientY - rect.top) / rect.height) * canvas.height;
+    const pad = 34;
+    const W = canvas.width;
+    const H = canvas.height;
+    const toScreenX = x => pad + (x / 100) * (W - pad * 2);
+    const toScreenY = y => pad + (y / 100) * (H - pad * 2);
+
+    // Kiểm tra xem người dùng bấm vào Khách hàng nào gần nhất
+    let bestCustIdx = -1;
+    let minCustDist = 20;
+    engine.customers.forEach((c, idx) => {
+        const d = Math.hypot(clickX - toScreenX(c.x), clickY - toScreenY(c.y));
+        if (d < minCustDist) {
+            minCustDist = d;
+            bestCustIdx = idx;
+        }
+    });
+
+    if (bestCustIdx !== -1) {
+        stopAllTimers();
+        selectedOrderStep = bestCustIdx + 1;
+        showAllRoutesOnMap = false;
+        document.getElementById('slider-step').value = selectedOrderStep;
+        updateStepView(selectedOrderStep, true);
+        showToast(`Đang soi Đơn hàng #${selectedOrderStep}: ${engine.customers[bestCustIdx].name}`);
+        return;
+    }
+
+    // Kiểm tra xem người dùng có bấm vào Kho hàng nào không
+    let bestWhIdx = -1;
+    let minWhDist = 22;
+    engine.warehouses.forEach((w, idx) => {
+        const d = Math.hypot(clickX - toScreenX(w.x), clickY - toScreenY(w.y));
+        if (d < minWhDist) {
+            minWhDist = d;
+            bestWhIdx = idx;
+        }
+    });
+
+    if (bestWhIdx !== -1) {
+        // Tìm đơn hàng có liên quan đến kho này hoặc nhảy tới đơn hàng sử dụng kho này
+        const relatedLog = currentSimResult.stepLogs.find(
+            l => l.warehouseIdx === bestWhIdx || l.proposedWarehouseIdx === bestWhIdx
+        );
+        const wh = engine.warehouses[bestWhIdx];
+        if (relatedLog) {
+            stopAllTimers();
+            selectedOrderStep = relatedLog.step;
+            showAllRoutesOnMap = false;
+            document.getElementById('slider-step').value = selectedOrderStep;
+            updateStepView(selectedOrderStep, true);
+            showToast(`Đã chọn ${wh.code} (${wh.name}) → Đang phục vụ Đơn hàng #${selectedOrderStep} (${relatedLog.customerCode})`);
+        } else {
+            showToast(`${wh.code} (${wh.name}): Sức chứa ${wh.initialCapacity} tấn • ${wh.openStatus ? 'Đang mở' : 'Đang đóng bảo trì'} • l_max = ${wh.lmax}`);
+        }
+    }
+}
+
 function activateWorkflowStep(wfStep) {
     currentWorkflowStep = wfStep;
     const info = WORKFLOW_STEPS_INFO[wfStep];
     currentModelMode = info.model;
-    syncWorkflowAndModelButtons();
-    selectRepresentativeAttackedStep();
-    updateCurrentSimulation();
+
+    if (wfStep === 2) {
+        // Ở Bước 2 (Soi & Bơm nhiễu gói tin), tập trung vào đúng 1 đơn hàng bị đánh lừa điển hình và làm nổi bật Bảng Bơm Nhiễu + Máy Quét Gói Tin
+        selectRepresentativeAttackedStep();
+        showAllRoutesOnMap = false;
+        triggerVisualFlash('hacker-live-console');
+        triggerVisualFlash('inspector-right-panel');
+    } else {
+        showAllRoutesOnMap = true;
+    }
+
+    updateCurrentSimulation(true);
 }
 
 function syncWorkflowAndModelButtons() {
@@ -474,18 +658,13 @@ function syncWorkflowAndModelButtons() {
     badgeEl.className = `status-pill ${info.badgeClass}`;
 }
 
-/**
- * Tìm đơn hàng (bước) điển hình nhất bị tin tặc đánh lừa trong kịch bản hiện tại
- */
 function selectRepresentativeAttackedStep() {
     if (!allSummary) return;
     const m1Logs = allSummary.resultsByScenario[currentScenarioId].M1.stepLogs;
-    // Ưu tiên bước có vi phạm ràng buộc hoặc chi phí đội cao nhất
     const violatedStep = m1Logs.find(l => l.isInvalidProposal || l.unserved > 0 || l.status !== 'HỢP LỆ');
     if (violatedStep) {
         selectedOrderStep = violatedStep.step;
     } else {
-        // Như kịch bản 2 (Transport Cost Poisoning), tìm bước có chênh lệch chi phí thực so với tối ưu lớn nhất
         let bestStep = 1;
         let maxDiff = -1;
         m1Logs.forEach(l => {
@@ -501,7 +680,7 @@ function selectRepresentativeAttackedStep() {
     if (slider) slider.value = selectedOrderStep;
 }
 
-function updateCurrentSimulation() {
+function updateCurrentSimulation(withFlash = false) {
     document.querySelectorAll('.scenario-pill').forEach(pill => {
         pill.classList.toggle('active', Number(pill.getAttribute('data-scenario')) === currentScenarioId);
     });
@@ -522,9 +701,13 @@ function updateCurrentSimulation() {
     const baselineM0 = allSummary.baselineM0;
 
     renderTopKpiCards(currentSimResult, baselineM0);
-    renderScenarioSpecificComparisonTable(currentScenarioId);
+    renderScenarioSpecificComparisonTable(currentScenarioId, currentModelMode);
     renderStepLogTable(currentSimResult.stepLogs);
-    updateStepView(selectedOrderStep);
+    updateStepView(selectedOrderStep, withFlash);
+
+    if (withFlash) {
+        triggerVisualFlash('kpi-grid-container');
+    }
 }
 
 function renderTopKpiCards(simRes, baseRes) {
@@ -557,31 +740,28 @@ function renderTopKpiCards(simRes, baseRes) {
     document.getElementById('kpi-rt-sub').textContent = `Thời gian phục hồi (RT): ${m.RT} bước`;
 }
 
-function renderScenarioSpecificComparisonTable(scenarioId) {
+function renderScenarioSpecificComparisonTable(scenarioId, activeMode = 'M1') {
     const container = document.getElementById('live-scenario-table-container');
-    container.innerHTML = buildMemberScenarioTableHTML(scenarioId);
+    container.innerHTML = buildMemberScenarioTableHTML(scenarioId, activeMode);
 }
 
-/**
- * Cập nhật Máy quét gói tin, Bảng so sánh Q-value Top 5 kho và Bản đồ tại đơn hàng stepNumber
- */
-function updateStepView(stepNumber) {
+function updateStepView(stepNumber, withFlash = false) {
     if (!currentSimResult) return;
     selectedOrderStep = Math.max(1, Math.min(50, stepNumber));
     const idx = selectedOrderStep - 1;
     const log = currentSimResult.stepLogs[idx];
-    // Lấy thêm bản ghi M1 của cùng bước đó để luôn hiển thị được gói tin tin tặc giả mạo khi ở Bước 2
     const m1Log = allSummary.resultsByScenario[currentScenarioId].M1.stepLogs[idx];
     const exp = currentModelMode === 'M0' && currentWorkflowStep !== 2 ? log.explain : m1Log.explain;
+
+    syncHackerActionButtons();
 
     document.getElementById('step-counter-badge').textContent =
         `Đơn hàng #${selectedOrderStep}/50: ${log.customerName} (${log.realDemand} tấn) → ${log.finalWarehouse}`;
     document.getElementById('inspector-order-badge').textContent =
-        `Đang soi: Đơn #${selectedOrderStep} (${log.customerCode} • Cần ${log.realDemand} tấn)`;
+        `Đang soi: Đơn #${selectedOrderStep} (${log.customerCode} • Cần ${log.realDemand} tấn • Cấu hình ${currentModelMode})`;
 
-    // 1. Hộp cảnh báo sự cố hiện trường
     const alertBox = document.getElementById('live-incident-alert');
-    alertBox.innerHTML = `<strong>📡 DIỄN BIẾN HIỆN TRƯỜNG (ĐƠN HÀNG #${selectedOrderStep} - ${log.customerName}):</strong><br/>${log.explain.businessNarrative}`;
+    alertBox.innerHTML = `<strong>📡 DIỄN BIẾN HIỆN TRƯỜNG (ĐƠN HÀNG #${selectedOrderStep} - ${log.customerName} • Chế độ ${currentModelMode}):</strong><br/>${log.explain.businessNarrative}`;
     alertBox.className =
         log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10
             ? 'incident-live-alert alert-ok'
@@ -589,20 +769,18 @@ function updateStepView(stepNumber) {
             ? 'incident-live-alert alert-warn'
             : 'incident-live-alert alert-danger';
 
-    // 2. Máy quét gói tin Thực tế vs Giả mạo
     document.getElementById('packet-real-text').textContent = exp.realValStr;
     document.getElementById('packet-optimal-note').textContent =
         `↳ Kho chuẩn tối ưu (M0): ${exp.cleanBestWarehouseCode} (Cước thực: ${exp.cleanBestCost} đv tiền)`;
 
     if (currentModelMode === 'M0' && currentWorkflowStep === 1) {
-        document.getElementById('packet-spoofed-text').textContent = 'Chưa phát động tấn công (Gói tin trùng khớp 100% với thực tế tại kho)';
-        document.getElementById('packet-tamper-summary').textContent = '↳ Bấm sang [Bước 2] hoặc [Bước 3] ở thanh trên để xem tin tặc bơm nhiễu gói tin!';
+        document.getElementById('packet-spoofed-text').textContent = 'Đang ở Bước 1 (M0): Gói tin sạch 100%, không có nhiễu đối kháng.';
+        document.getElementById('packet-tamper-summary').textContent = '↳ Bấm sang [Bước 2] hoặc bấm nút trong Bảng Thao Tác Tấn Công để bơm nhiễu!';
     } else {
         document.getElementById('packet-spoofed-text').textContent = exp.spoofedValStr;
         document.getElementById('packet-tamper-summary').textContent = `↳ Trường bị sửa: ${exp.tamperedField} — ${exp.packetTamperDetail}`;
     }
 
-    // 3. Bảng so sánh Q-value trên Top 5 kho ứng viên
     const qTbody = document.getElementById('top-candidates-q-tbody');
     const candidates = log.explain.topCandidates;
     qTbody.innerHTML = candidates
@@ -656,10 +834,13 @@ function updateStepView(stepNumber) {
         })
         .join('');
 
-    // Đánh dấu dòng đang chọn trong bảng 50 bước
     document.querySelectorAll('#step-log-tbody tr').forEach((tr, i) => {
         tr.classList.toggle('row-selected-step', i === idx);
     });
+
+    if (withFlash) {
+        triggerVisualFlash('inspector-right-panel');
+    }
 
     drawNetworkCanvas();
 }
@@ -676,13 +857,13 @@ function toggleOrderPlayback() {
     btn.innerHTML = '⏸ Tạm dừng phát';
     playbackTimer = setInterval(() => {
         document.getElementById('slider-step').value = selectedOrderStep;
-        updateStepView(selectedOrderStep);
+        updateStepView(selectedOrderStep, false);
         if (selectedOrderStep >= 50) {
             stopAllTimers();
         } else {
             selectedOrderStep++;
         }
-    }, 350);
+    }, 320);
 }
 
 function toggleAutoDemo5Steps() {
@@ -706,7 +887,7 @@ function toggleAutoDemo5Steps() {
         }
         activateWorkflowStep(step);
         showToast(`Chuyển sang Bước ${step}: ${WORKFLOW_STEPS_INFO[step].badge}`);
-    }, 3400);
+    }, 3200);
 }
 
 function stopAllTimers() {
@@ -724,9 +905,6 @@ function stopAllTimers() {
     if (demoBtn) demoBtn.innerHTML = '🎬 Tự Động Trình Chiếu 5 Bước Kịch Bản Này';
 }
 
-/**
- * Vẽ bản đồ 50 Kho - 50 Khách hàng và làm nổi bật đơn hàng đang soi (bao gồm cả đường dự kiến bị lừa & đường điều hướng)
- */
 function drawNetworkCanvas() {
     const canvas = document.getElementById('network-canvas');
     if (!canvas || !engine || !currentSimResult) return;
@@ -763,7 +941,6 @@ function drawNetworkCanvas() {
     const maxDrawStep = showAllRoutesOnMap ? 50 : selectedOrderStep;
     const logs = currentSimResult.stepLogs.slice(0, maxDrawStep);
 
-    // Vẽ các tuyến phân bổ nền
     logs.forEach(log => {
         const isCurrentSelected = log.step === selectedOrderStep;
         const wh = engine.warehouses[log.warehouseIdx];
@@ -775,7 +952,6 @@ function drawNetworkCanvas() {
         const x2 = toScreenX(cust.x);
         const y2 = toScreenY(cust.y);
 
-        // Nếu ở cấu hình M3 và bước đang chọn bị chặn + điều hướng, vẽ thêm đường nét đứt màu đỏ tới kho bẫy mà AI đề xuất ban đầu
         if (isCurrentSelected && log.proposedWarehouseIdx !== log.warehouseIdx) {
             const trapWh = engine.warehouses[log.proposedWarehouseIdx];
             if (trapWh) {
@@ -785,7 +961,7 @@ function drawNetworkCanvas() {
                 ctx.moveTo(toScreenX(trapWh.x), toScreenY(trapWh.y));
                 ctx.lineTo(x2, y2);
                 ctx.strokeStyle = '#ef4444';
-                ctx.lineWidth = 2.2;
+                ctx.lineWidth = 2.4;
                 ctx.stroke();
                 ctx.restore();
             }
@@ -797,18 +973,17 @@ function drawNetworkCanvas() {
 
         if (log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10) {
             ctx.strokeStyle = isCurrentSelected ? '#22c55e' : 'rgba(56, 189, 248, 0.26)';
-            ctx.lineWidth = isCurrentSelected ? 3.2 : 1.05;
+            ctx.lineWidth = isCurrentSelected ? 3.4 : 1.05;
         } else if (log.status.includes('M3')) {
             ctx.strokeStyle = isCurrentSelected ? '#fbbf24' : 'rgba(245, 158, 11, 0.45)';
-            ctx.lineWidth = isCurrentSelected ? 3.2 : 1.25;
+            ctx.lineWidth = isCurrentSelected ? 3.4 : 1.25;
         } else {
             ctx.strokeStyle = isCurrentSelected ? '#ef4444' : 'rgba(239, 68, 68, 0.55)';
-            ctx.lineWidth = isCurrentSelected ? 3.4 : 1.4;
+            ctx.lineWidth = isCurrentSelected ? 3.6 : 1.4;
         }
         ctx.stroke();
     });
 
-    // Vẽ 50 Khách hàng
     engine.customers.forEach((c, idx) => {
         const cx = toScreenX(c.x);
         const cy = toScreenY(c.y);
@@ -816,7 +991,7 @@ function drawNetworkCanvas() {
         const isSelected = idx + 1 === selectedOrderStep;
 
         ctx.beginPath();
-        ctx.arc(cx, cy, isSelected ? 8 : 4.5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, isSelected ? 8.5 : 4.5, 0, Math.PI * 2);
         if (servedLog && servedLog.unserved > 0) {
             ctx.fillStyle = '#ef4444';
         } else {
@@ -834,7 +1009,6 @@ function drawNetworkCanvas() {
         }
     });
 
-    // Vẽ 50 Kho hàng
     const currentLog = currentSimResult.stepLogs[selectedOrderStep - 1];
     engine.warehouses.forEach(w => {
         const wx = toScreenX(w.x);
@@ -904,15 +1078,20 @@ window.selectOrderStepFromTable = function (stepNum) {
     selectedOrderStep = Number(stepNum);
     showAllRoutesOnMap = false;
     document.getElementById('slider-step').value = selectedOrderStep;
-    updateStepView(selectedOrderStep);
+    updateStepView(selectedOrderStep, true);
 };
 
-function buildMemberScenarioTableHTML(scenarioId) {
+function buildMemberScenarioTableHTML(scenarioId, activeMode = 'M1') {
     const sData = allSummary.resultsByScenario[scenarioId];
     const m0 = sData.M0.metrics;
     const m1 = sData.M1.metrics;
     const m2 = sData.M2.metrics;
     const m3 = sData.M3.metrics;
+
+    const cM0 = activeMode === 'M0' ? 'class="col-active-mode"' : '';
+    const cM1 = activeMode === 'M1' ? 'class="col-active-mode"' : '';
+    const cM2 = activeMode === 'M2' ? 'class="col-active-mode"' : '';
+    const cM3 = activeMode === 'M3' ? 'class="col-active-mode"' : '';
 
     switch (Number(scenarioId)) {
         case 1:
@@ -921,40 +1100,40 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 1 – Open Status Spoofing)</th>
-                            <th>Bình thường (M0)</th>
-                            <th>Có tác động (M1)</th>
-                            <th>Huấn luyện đối kháng (M2)</th>
-                            <th>Action Masking + Kiểm tra thực tế (M3)</th>
+                            <th ${cM0}>Bình thường (M0)</th>
+                            <th ${cM1}>Có tác động (M1)</th>
+                            <th ${cM2}>Huấn luyện đối kháng (M2)</th>
+                            <th ${cM3}>Action Masking + Kiểm tra thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Số lần chọn kho đang đóng (Invalid Warehouse Selection)</strong></td>
-                            <td>0 lần</td>
-                            <td class="text-danger"><strong>${m1.closedSelections} lần</strong></td>
-                            <td>${m2.closedSelections} lần</td>
-                            <td class="text-success"><strong>0 lần (Đã chặn ${m3.closedSelections} đề xuất)</strong></td>
+                            <td ${cM0}>0 lần</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.closedSelections} lần</strong></td>
+                            <td ${cM2}>${m2.closedSelections} lần</td>
+                            <td ${cM3} class="text-success"><strong>0 lần (Đã chặn ${m3.closedSelections} đề xuất)</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td>${m0.TAC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
-                            <td class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
+                            <td ${cM0}>${m0.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM2}>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
+                            <td ${cM3} class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td>${m0.UD}</td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m2.UD.toLocaleString('vi-VN')}</td>
-                            <td class="text-success"><strong>${m3.UD}</strong></td>
+                            <td ${cM0}>${m0.UD}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2}>${m2.UD.toLocaleString('vi-VN')}</td>
+                            <td ${cM3} class="text-success"><strong>${m3.UD}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Số quyết định bị từ chối (Rejected Allocation)</strong></td>
-                            <td>0</td>
-                            <td class="text-danger"><strong>${m1.rejectedAllocations}</strong></td>
-                            <td>${m2.rejectedAllocations}</td>
-                            <td>${m3.rejectedAllocations} (Từ chối an toàn & điều hướng)</td>
+                            <td ${cM0}>0</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.rejectedAllocations}</strong></td>
+                            <td ${cM2}>${m2.rejectedAllocations}</td>
+                            <td ${cM3}>${m3.rejectedAllocations} (Từ chối an toàn & điều hướng)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -965,40 +1144,40 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 2 – Transport Cost Poisoning)</th>
-                            <th>Bình thường (M0)</th>
-                            <th>Có tác động (M1)</th>
-                            <th>Huấn luyện đối kháng (M2)</th>
-                            <th>Action Masking + Kiểm tra thực tế (M3)</th>
+                            <th ${cM0}>Bình thường (M0)</th>
+                            <th ${cM1}>Có tác động (M1)</th>
+                            <th ${cM2}>Huấn luyện đối kháng (M2)</th>
+                            <th ${cM3}>Action Masking + Kiểm tra thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td>${m0.TAC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')}</strong></td>
-                            <td class="text-success"><strong>${m2.TAC.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m3.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM0}>${m0.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2} class="text-success"><strong>${m2.TAC.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM3}>${m3.TAC.toLocaleString('vi-VN')}</td>
                         </tr>
                         <tr>
                             <td><strong>Chi phí vận chuyển trung bình (ATC - đv tiền/đơn)</strong></td>
-                            <td>${m0.ATC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.ATC.toLocaleString('vi-VN')}</strong></td>
-                            <td class="text-success"><strong>${m2.ATC.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m3.ATC.toLocaleString('vi-VN')}</td>
+                            <td ${cM0}>${m0.ATC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.ATC.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2} class="text-success"><strong>${m2.ATC.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM3}>${m3.ATC.toLocaleString('vi-VN')}</td>
                         </tr>
                         <tr>
                             <td><strong>Tỷ lệ gia tăng chi phí (Cost Increase Rate)</strong></td>
-                            <td>0%</td>
-                            <td class="text-danger"><strong>+${sData.deltaTAC_M1}%</strong></td>
-                            <td class="text-success"><strong>+${sData.deltaTAC_M2}%</strong></td>
-                            <td>+${sData.deltaTAC_M3}%</td>
+                            <td ${cM0}>0%</td>
+                            <td ${cM1} class="text-danger"><strong>+${sData.deltaTAC_M1}%</strong></td>
+                            <td ${cM2} class="text-success"><strong>+${sData.deltaTAC_M2}%</strong></td>
+                            <td ${cM3}>+${sData.deltaTAC_M3}%</td>
                         </tr>
                         <tr>
                             <td><strong>Số quyết định không tối ưu (Suboptimal Allocation)</strong></td>
-                            <td>${m0.suboptimalDecisions} / 50</td>
-                            <td class="text-danger"><strong>${m1.suboptimalDecisions} / 50</strong></td>
-                            <td class="text-success"><strong>${m2.suboptimalDecisions} / 50</strong></td>
-                            <td>${m3.suboptimalDecisions} / 50</td>
+                            <td ${cM0}>${m0.suboptimalDecisions} / 50</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.suboptimalDecisions} / 50</strong></td>
+                            <td ${cM2} class="text-success"><strong>${m2.suboptimalDecisions} / 50</strong></td>
+                            <td ${cM3}>${m3.suboptimalDecisions} / 50</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1009,47 +1188,47 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 3 – Capacity Exhaustion Attack)</th>
-                            <th>Bình thường (M0)</th>
-                            <th>Có tác động (M1)</th>
-                            <th>Huấn luyện đối kháng (M2)</th>
-                            <th>Action Masking + Kiểm tra thực tế (M3)</th>
+                            <th ${cM0}>Bình thường (M0)</th>
+                            <th ${cM1}>Có tác động (M1)</th>
+                            <th ${cM2}>Huấn luyện đối kháng (M2)</th>
+                            <th ${cM3}>Action Masking + Kiểm tra thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Số đề xuất phân bổ không hợp lệ (Invalid Capacity Allocation)</strong></td>
-                            <td>0</td>
-                            <td class="text-danger"><strong>${m1.invalidProposals}</strong></td>
-                            <td>${m2.invalidProposals}</td>
-                            <td>${m3.invalidProposals}</td>
+                            <td ${cM0}>0</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.invalidProposals}</strong></td>
+                            <td ${cM2}>${m2.invalidProposals}</td>
+                            <td ${cM3}>${m3.invalidProposals}</td>
                         </tr>
                         <tr>
                             <td><strong>Số quyết định bị từ chối (Rejected Allocation)</strong></td>
-                            <td>0</td>
-                            <td>${m1.rejectedAllocations}</td>
-                            <td>${m2.rejectedAllocations}</td>
-                            <td class="text-success"><strong>${m3.rejectedAllocations} (Chặn 100% trước thực thi)</strong></td>
+                            <td ${cM0}>0</td>
+                            <td ${cM1}>${m1.rejectedAllocations}</td>
+                            <td ${cM2}>${m2.rejectedAllocations}</td>
+                            <td ${cM3} class="text-success"><strong>${m3.rejectedAllocations} (Chặn 100% trước thực thi)</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Số vi phạm sức chứa thực tế (Capacity Violation - CV)</strong></td>
-                            <td>0</td>
-                            <td class="text-danger"><strong>${m1.CV} lần</strong></td>
-                            <td>${m2.CV} lần</td>
-                            <td class="text-success"><strong>0 lần</strong></td>
+                            <td ${cM0}>0</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.CV} lần</strong></td>
+                            <td ${cM2}>${m2.CV} lần</td>
+                            <td ${cM3} class="text-success"><strong>0 lần</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td>${m0.UD}</td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m2.UD.toLocaleString('vi-VN')}</td>
-                            <td class="text-success"><strong>${m3.UD}</strong></td>
+                            <td ${cM0}>${m0.UD}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2}>${m2.UD.toLocaleString('vi-VN')}</td>
+                            <td ${cM3} class="text-success"><strong>${m3.UD}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td>${m0.TAC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
-                            <td class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
+                            <td ${cM0}>${m0.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM2}>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
+                            <td ${cM3} class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1060,47 +1239,47 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 4 – Fake Demand Fluctuation)</th>
-                            <th>Bình thường (M0)</th>
-                            <th>Có tác động (M1)</th>
-                            <th>Huấn luyện đối kháng (M2)</th>
-                            <th>Action Masking + Kiểm tra thực tế (M3)</th>
+                            <th ${cM0}>Bình thường (M0)</th>
+                            <th ${cM1}>Có tác động (M1)</th>
+                            <th ${cM2}>Huấn luyện đối kháng (M2)</th>
+                            <th ${cM3}>Action Masking + Kiểm tra thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td>${m0.UD}</td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m2.UD.toLocaleString('vi-VN')}</td>
-                            <td class="text-success"><strong>${m3.UD}</strong></td>
+                            <td ${cM0}>${m0.UD}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2}>${m2.UD.toLocaleString('vi-VN')}</td>
+                            <td ${cM3} class="text-success"><strong>${m3.UD}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Tỷ lệ đáp ứng nhu cầu (DFR - %)</strong></td>
-                            <td>${m0.DFR}%</td>
-                            <td class="text-danger"><strong>${m1.DFR}%</strong></td>
-                            <td>${m2.DFR}%</td>
-                            <td class="text-success"><strong>${m3.DFR}%</strong></td>
+                            <td ${cM0}>${m0.DFR}%</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.DFR}%</strong></td>
+                            <td ${cM2}>${m2.DFR}%</td>
+                            <td ${cM3} class="text-success"><strong>${m3.DFR}%</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Số khách hàng được phục vụ đầy đủ (Fully Served Customers)</strong></td>
-                            <td>${m0.fullyServedCustomers} / 50</td>
-                            <td class="text-danger"><strong>${m1.fullyServedCustomers} / 50</strong></td>
-                            <td>${m2.fullyServedCustomers} / 50</td>
-                            <td class="text-success"><strong>${m3.fullyServedCustomers} / 50</strong></td>
+                            <td ${cM0}>${m0.fullyServedCustomers} / 50</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.fullyServedCustomers} / 50</strong></td>
+                            <td ${cM2}>${m2.fullyServedCustomers} / 50</td>
+                            <td ${cM3} class="text-success"><strong>${m3.fullyServedCustomers} / 50</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td>${m0.TAC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
-                            <td class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
+                            <td ${cM0}>${m0.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM2}>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
+                            <td ${cM3} class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Mức chênh lệch phân bổ (Allocation Deviation)</strong></td>
-                            <td>0 đv</td>
-                            <td class="text-danger"><strong>${m1.allocationDeviation.toLocaleString('vi-VN')} đv</strong></td>
-                            <td>${m2.allocationDeviation.toLocaleString('vi-VN')} đv</td>
-                            <td class="text-success"><strong>0 đv (Đối chiếu đơn hàng gốc)</strong></td>
+                            <td ${cM0}>0 đv</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.allocationDeviation.toLocaleString('vi-VN')} đv</strong></td>
+                            <td ${cM2}>${m2.allocationDeviation.toLocaleString('vi-VN')} đv</td>
+                            <td ${cM3} class="text-success"><strong>0 đv (Đối chiếu đơn hàng gốc)</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1111,47 +1290,47 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 5 – Distributed Multi-Node Attack)</th>
-                            <th>Bình thường (M0)</th>
-                            <th>Có tác động vào 5 kho chiến lược (M1)</th>
-                            <th>Huấn luyện đối kháng (M2)</th>
-                            <th>Action Masking + Kiểm tra thực tế (M3)</th>
+                            <th ${cM0}>Bình thường (M0)</th>
+                            <th ${cM1}>Có tác động vào 5 kho chiến lược (M1)</th>
+                            <th ${cM2}>Huấn luyện đối kháng (M2)</th>
+                            <th ${cM3}>Action Masking + Kiểm tra thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td>${m0.TAC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
-                            <td>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</td>
+                            <td ${cM0}>${m0.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM2}>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
+                            <td ${cM3}>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td>${m0.UD}</td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m2.UD}</td>
-                            <td>${m3.UD}</td>
+                            <td ${cM0}>${m0.UD}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2}>${m2.UD}</td>
+                            <td ${cM3}>${m3.UD}</td>
                         </tr>
                         <tr>
                             <td><strong>Tỷ lệ đáp ứng nhu cầu (DFR - %)</strong></td>
-                            <td>${m0.DFR}%</td>
-                            <td class="text-danger"><strong>${m1.DFR}%</strong></td>
-                            <td>${m2.DFR}%</td>
-                            <td>${m3.DFR}%</td>
+                            <td ${cM0}>${m0.DFR}%</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.DFR}%</strong></td>
+                            <td ${cM2}>${m2.DFR}%</td>
+                            <td ${cM3}>${m3.DFR}%</td>
                         </tr>
                         <tr>
                             <td><strong>Tỷ lệ sử dụng sức chứa toàn hệ thống</strong></td>
-                            <td>${m0.capUtilizationRate}%</td>
-                            <td>${m1.capUtilizationRate}% (Dồn tải sang kho vệ tinh)</td>
-                            <td>${m2.capUtilizationRate}%</td>
-                            <td>${m3.capUtilizationRate}%</td>
+                            <td ${cM0}>${m0.capUtilizationRate}%</td>
+                            <td ${cM1}>${m1.capUtilizationRate}% (Dồn tải sang kho vệ tinh)</td>
+                            <td ${cM2}>${m2.capUtilizationRate}%</td>
+                            <td ${cM3}>${m3.capUtilizationRate}%</td>
                         </tr>
                         <tr>
                             <td><strong>Hiệu suất của 45 kho còn lại (Remaining Network Performance)</strong></td>
-                            <td>100% (Phân tải cân bằng)</td>
-                            <td class="text-danger"><strong>Suy giảm 28,4% (Tăng cự ly vận chuyển TB +34%)</strong></td>
-                            <td>Khôi phục đạt 91,2%</td>
-                            <td>Đạt 93,5% (Không vi phạm ràng buộc)</td>
+                            <td ${cM0}>100% (Phân tải cân bằng)</td>
+                            <td ${cM1} class="text-danger"><strong>Suy giảm 28,4% (Tăng cự ly vận chuyển TB +34%)</strong></td>
+                            <td ${cM2}>Khôi phục đạt 91,2%</td>
+                            <td ${cM3}>Đạt 93,5% (Không vi phạm ràng buộc)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1162,47 +1341,47 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 6 – l_max Overload Attack)</th>
-                            <th>Bình thường (M0)</th>
-                            <th>Có tác động (M1)</th>
-                            <th>Huấn luyện đối kháng (M2)</th>
-                            <th>Action Masking + Kiểm tra thực tế (M3)</th>
+                            <th ${cM0}>Bình thường (M0)</th>
+                            <th ${cM1}>Có tác động (M1)</th>
+                            <th ${cM2}>Huấn luyện đối kháng (M2)</th>
+                            <th ${cM3}>Action Masking + Kiểm tra thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Số đề xuất vượt giới hạn l_max (l_max Violation - LV)</strong></td>
-                            <td>0 lần</td>
-                            <td class="text-danger"><strong>${m1.LV} lần</strong></td>
-                            <td>${m2.LV} lần</td>
-                            <td class="text-success"><strong>0 lần thực thi (Chặn ${m3.invalidProposals} đề xuất)</strong></td>
+                            <td ${cM0}>0 lần</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.LV} lần</strong></td>
+                            <td ${cM2}>${m2.LV} lần</td>
+                            <td ${cM3} class="text-success"><strong>0 lần thực thi (Chặn ${m3.invalidProposals} đề xuất)</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Số quyết định bị từ chối (Rejected Allocation)</strong></td>
-                            <td>0</td>
-                            <td>${m1.rejectedAllocations}</td>
-                            <td>${m2.rejectedAllocations}</td>
-                            <td class="text-success"><strong>${m3.rejectedAllocations}</strong></td>
+                            <td ${cM0}>0</td>
+                            <td ${cM1}>${m1.rejectedAllocations}</td>
+                            <td ${cM2}>${m2.rejectedAllocations}</td>
+                            <td ${cM3} class="text-success"><strong>${m3.rejectedAllocations}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Số kho có nguy cơ quá tải (Overloaded Warehouse)</strong></td>
-                            <td>0 kho</td>
-                            <td class="text-danger"><strong>${m1.overloadedWarehouses} kho</strong></td>
-                            <td>${m2.overloadedWarehouses} kho</td>
-                            <td class="text-success"><strong>0 kho</strong></td>
+                            <td ${cM0}>0 kho</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.overloadedWarehouses} kho</strong></td>
+                            <td ${cM2}>${m2.overloadedWarehouses} kho</td>
+                            <td ${cM3} class="text-success"><strong>0 kho</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td>${m0.UD}</td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m2.UD.toLocaleString('vi-VN')}</td>
-                            <td class="text-success"><strong>${m3.UD}</strong></td>
+                            <td ${cM0}>${m0.UD}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM2}>${m2.UD.toLocaleString('vi-VN')}</td>
+                            <td ${cM3} class="text-success"><strong>${m3.UD}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td>${m0.TAC.toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
-                            <td class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
+                            <td ${cM0}>${m0.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM2}>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</td>
+                            <td ${cM3} class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1222,39 +1401,39 @@ function buildMemberScenarioTableHTML(scenarioId) {
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 7 – Transient / Random-Time Attack)</th>
                             <th>Trước tác động (Bước 1–60)</th>
-                            <th>Trong tác động (Bước 61–80)</th>
+                            <th ${cM1}>Trong tác động (Bước 61–80)</th>
                             <th>Sau tác động (Bước 81–100)</th>
-                            <th>Toàn chu kỳ (M1 so với M3)</th>
+                            <th ${cM3}>Toàn chu kỳ (M1 so với M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC theo giai đoạn)</strong></td>
                             <td>${Math.round(p.before.tac).toLocaleString('vi-VN')}</td>
-                            <td class="text-danger"><strong>${Math.round(p.during.tac).toLocaleString('vi-VN')} (Tăng đột biến)</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${Math.round(p.during.tac).toLocaleString('vi-VN')} (Tăng đột biến)</strong></td>
                             <td class="text-success"><strong>${Math.round(p.after.tac).toLocaleString('vi-VN')} (Ổn định lại)</strong></td>
-                            <td>M1: ${m1.TAC.toLocaleString('vi-VN')} | M3: ${m3.TAC.toLocaleString('vi-VN')}</td>
+                            <td ${cM3}>M1: ${m1.TAC.toLocaleString('vi-VN')} | M3: ${m3.TAC.toLocaleString('vi-VN')}</td>
                         </tr>
                         <tr>
                             <td><strong>Phần thưởng trung bình (AR - điểm/bước)</strong></td>
                             <td>+${arBefore}</td>
-                            <td class="text-danger"><strong>${arDuring}</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${arDuring}</strong></td>
                             <td class="text-success"><strong>+${arAfter}</strong></td>
-                            <td>M1: ${m1.AR} | M3: ${m3.AR}</td>
+                            <td ${cM3}>M1: ${m1.AR} | M3: ${m3.AR}</td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
                             <td>${p.before.ud}</td>
-                            <td class="text-danger"><strong>${p.during.ud}</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${p.during.ud}</strong></td>
                             <td class="text-success"><strong>${p.after.ud}</strong></td>
-                            <td>M1: ${m1.UD} | M3: ${m3.UD}</td>
+                            <td ${cM3}>M1: ${m1.UD} | M3: ${m3.UD}</td>
                         </tr>
                         <tr>
                             <td><strong>Hiệu suất mô hình & Thời gian phục hồi (RT)</strong></td>
                             <td>${perfBefore}% (Cơ sở)</td>
-                            <td class="text-danger"><strong>${perfDuring}% (Suy giảm mạnh)</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${perfDuring}% (Suy giảm mạnh)</strong></td>
                             <td class="text-success"><strong>${perfAfter}% (Phục hồi sau RT = ${m1.RT} bước)</strong></td>
-                            <td>RT(M1) = ${m1.RT} bước | RT(M3) = ${m3.RT} bước</td>
+                            <td ${cM3}>RT(M1) = ${m1.RT} bước | RT(M3) = ${m3.RT} bước</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1266,40 +1445,40 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 8 – Action Mask-Bypassing Attack)</th>
-                            <th>Cấu hình A (Action Masking theo dữ liệu quan sát - M1)</th>
-                            <th>Cấu hình B (Action Masking + Bộ kiểm tra độc lập thực tế - M3)</th>
+                            <th ${cM1}>Cấu hình A (Action Masking theo dữ liệu quan sát - M1)</th>
+                            <th ${cM3}>Cấu hình B (Action Masking + Bộ kiểm tra độc lập thực tế - M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Tổng số hành động được đề xuất</strong></td>
-                            <td>50 hành động</td>
-                            <td>50 hành động</td>
+                            <td ${cM1}>50 hành động</td>
+                            <td ${cM3}>50 hành động</td>
                         </tr>
                         <tr>
                             <td><strong>Số hành động không hợp lệ (Invalid Proposals)</strong></td>
-                            <td class="text-danger"><strong>${m1.invalidProposals} hành động (${m1.IR}%)</strong></td>
-                            <td>${m3.invalidProposals} hành động (Do nhiễu quan sát đầu vào)</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.invalidProposals} hành động (${m1.IR}%)</strong></td>
+                            <td ${cM3}>${m3.invalidProposals} hành động (Do nhiễu quan sát đầu vào)</td>
                         </tr>
                         <tr>
                             <td><strong>Số hành động bị phát hiện và từ chối (Rejected)</strong></td>
-                            <td>0 (Bị vượt qua lớp lọc quan sát)</td>
-                            <td class="text-success"><strong>${m3.rejectedAllocations} hành động (Tỷ lệ chặn 100%)</strong></td>
+                            <td ${cM1}>0 (Bị vượt qua lớp lọc quan sát)</td>
+                            <td ${cM3} class="text-success"><strong>${m3.rejectedAllocations} hành động (Tỷ lệ chặn 100%)</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Số hành động không hợp lệ được thực hiện (Invalid Accepted)</strong></td>
-                            <td class="text-danger"><strong>${m1.invalidAccepted} hành động (Gây lỗi vận hành)</strong></td>
-                            <td class="text-success"><strong>0 hành động</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${m1.invalidAccepted} hành động (Gây lỗi vận hành)</strong></td>
+                            <td ${cM3} class="text-success"><strong>0 hành động</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td class="text-success"><strong>${m3.UD}</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM3} class="text-success"><strong>${m3.UD}</strong></td>
                         </tr>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ (TAC - đơn vị tiền)</strong></td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM3} class="text-success"><strong>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1311,53 +1490,53 @@ function buildMemberScenarioTableHTML(scenarioId) {
                     <thead>
                         <tr>
                             <th>Chỉ số đánh giá (Kịch bản 9 – Reward Poisoning Attack)</th>
-                            <th>Model A – Normal Dueling DQN (M0)</th>
-                            <th>Model B – Reward Poisoned Dueling DQN (M1)</th>
-                            <th>Model B + Kiểm tra ràng buộc thực tế (M3)</th>
+                            <th ${cM0}>Model A – Normal Dueling DQN (M0)</th>
+                            <th ${cM1}>Model B – Reward Poisoned Dueling DQN (M1)</th>
+                            <th ${cM3}>Model B + Kiểm tra ràng buộc thực tế (M3)</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><strong>Training Reward (Phần thưởng TB khi huấn luyện)</strong></td>
-                            <td>+12,84 điểm</td>
-                            <td class="text-warning"><strong>+19,45 điểm (Ảo tưởng tối ưu do đảo dấu thưởng)</strong></td>
-                            <td>+13,10 điểm (Có kiểm duyệt thưởng)</td>
+                            <td ${cM0}>+12,84 điểm</td>
+                            <td ${cM1} class="text-warning"><strong>+19,45 điểm (Ảo tưởng tối ưu do đảo dấu thưởng)</strong></td>
+                            <td ${cM3}>+13,10 điểm (Có kiểm duyệt thưởng)</td>
                         </tr>
                         <tr>
                             <td><strong>Evaluation Reward (Đánh giá trên hàm thưởng chuẩn)</strong></td>
-                            <td class="text-success"><strong>+${m0.AR} điểm</strong></td>
-                            <td class="text-danger"><strong>${m1.AR} điểm (Suy giảm nghiêm trọng)</strong></td>
-                            <td>+${m3.AR} điểm</td>
+                            <td ${cM0} class="text-success"><strong>+${m0.AR} điểm</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${m1.AR} điểm (Suy giảm nghiêm trọng)</strong></td>
+                            <td ${cM3}>+${m3.AR} điểm</td>
                         </tr>
                         <tr>
                             <td><strong>Training Loss (Giá trị hàm mất mát MSE cuối khóa)</strong></td>
-                            <td>0,042</td>
-                            <td>0,198 (Dao động mạnh)</td>
-                            <td>0,051</td>
+                            <td ${cM0}>0,042</td>
+                            <td ${cM1}>0,198 (Dao động mạnh)</td>
+                            <td ${cM3}>0,051</td>
                         </tr>
                         <tr>
                             <td><strong>Tổng chi phí phân bổ thực tế (TAC - đơn vị tiền)</strong></td>
-                            <td class="text-success"><strong>${m0.TAC.toLocaleString('vi-VN')}</strong></td>
-                            <td class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
-                            <td>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</td>
+                            <td ${cM0} class="text-success"><strong>${m0.TAC.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM1} class="text-danger"><strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong></td>
+                            <td ${cM3}>${m3.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</td>
                         </tr>
                         <tr>
                             <td><strong>Nhu cầu chưa đáp ứng (UD - đơn vị hàng hóa)</strong></td>
-                            <td>${m0.UD}</td>
-                            <td class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
-                            <td>${m3.UD}</td>
+                            <td ${cM0}>${m0.UD}</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.UD.toLocaleString('vi-VN')}</strong></td>
+                            <td ${cM3}>${m3.UD}</td>
                         </tr>
                         <tr>
                             <td><strong>Tỷ lệ đáp ứng nhu cầu (DFR - %)</strong></td>
-                            <td>${m0.DFR}%</td>
-                            <td class="text-danger"><strong>${m1.DFR}%</strong></td>
-                            <td>${m3.DFR}%</td>
+                            <td ${cM0}>${m0.DFR}%</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.DFR}%</strong></td>
+                            <td ${cM3}>${m3.DFR}%</td>
                         </tr>
                         <tr>
                             <td><strong>Số vi phạm ràng buộc thực tế (Constraint Violation)</strong></td>
-                            <td>0 lần</td>
-                            <td class="text-danger"><strong>${m1.totalConstraintsViolated} lần</strong></td>
-                            <td class="text-success"><strong>0 lần</strong></td>
+                            <td ${cM0}>0 lần</td>
+                            <td ${cM1} class="text-danger"><strong>${m1.totalConstraintsViolated} lần</strong></td>
+                            <td ${cM3} class="text-success"><strong>0 lần</strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -1372,7 +1551,7 @@ function renderAllScenarioReportCards() {
     let html = '';
     for (let s = 1; s <= 9; s++) {
         const meta = SCENARIO_METADATA[s];
-        const tableHtml = buildMemberScenarioTableHTML(s);
+        const tableHtml = buildMemberScenarioTableHTML(s, 'M1');
         const sData = allSummary.resultsByScenario[s];
         const m0 = sData.M0.metrics;
         const m1 = sData.M1.metrics;
