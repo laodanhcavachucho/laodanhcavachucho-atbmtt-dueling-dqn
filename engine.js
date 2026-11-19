@@ -38,6 +38,8 @@ class WarehouseEnvironmentEngine {
         // Lưu trữ các can thiệp thủ công trực tiếp của người thuyết trình (Live Interactive Overrides)
         // key: customerIdx -> { flipOpen: boolean, poisonCost: boolean, spoofCap: boolean, alterDemandFactor: number, resetLmax: boolean, targetWarehouseIdx: number }
         this.manualOverrides = config.manualOverrides || {};
+        this.warehouseOverrides = config.warehouseOverrides || {};
+        this.customerDemandOverrides = config.customerDemandOverrides || {};
 
         this.initBaseDataset();
     }
@@ -123,6 +125,27 @@ class WarehouseEnvironmentEngine {
             }
             this.costMatrix.push(row);
         }
+
+        // Áp dụng các cập nhật nghiệp vụ từ Admin (chỉnh sửa kho hàng) và Khách hàng (đặt đơn hàng mới) trên CSDL Supabase
+        Object.entries(this.warehouseOverrides).forEach(([wIdxStr, ov]) => {
+            const wIdx = Number(wIdxStr);
+            if (this.warehouses[wIdx] && ov) {
+                if (ov.initialCapacity !== undefined) this.warehouses[wIdx].initialCapacity = Number(ov.initialCapacity);
+                if (ov.openStatus !== undefined) this.warehouses[wIdx].openStatus = Number(ov.openStatus);
+                if (ov.lmax !== undefined) this.warehouses[wIdx].lmax = Number(ov.lmax);
+            }
+        });
+
+        let updatedTotalDemand = 0;
+        for (let j = 0; j < this.numCustomers; j++) {
+            const cOv = this.customerDemandOverrides[j];
+            if (cOv && cOv.initialDemand !== undefined) {
+                this.customers[j].initialDemand = Number(cOv.initialDemand);
+                this.customers[j].customCreatedBy = cOv.createdBy || 'Khách hàng đặt trực tuyến';
+            }
+            updatedTotalDemand += this.customers[j].initialDemand;
+        }
+        this.totalInitialDemand = updatedTotalDemand;
     }
 
     computeDuelingQValues(obsState, customerIdx, modelMode = 'M0', isPoisonedRewardModel = false) {
@@ -826,6 +849,7 @@ class WarehouseEnvironmentEngine {
                 reward: Number(stepReward.toFixed(2)),
                 isInvalidProposal: isProposalInvalid,
                 status: status,
+                customCreatedBy: this.customers[j].customCreatedBy || 'Hệ thống OMS / AI',
                 explain
             });
         }

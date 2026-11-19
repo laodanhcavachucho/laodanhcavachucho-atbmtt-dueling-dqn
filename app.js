@@ -258,13 +258,20 @@ let showAllRoutesOnMap = true;
 let playbackTimer = null;
 let autoDemoTimer = null;
 let manualOverridesState = {};
+let warehouseOverridesState = {};
+let customerDemandOverridesState = {};
+let supabaseService = null;
+let activeSupabaseTable = 'don_hang_phan_bo';
+let cachedSqlSchemaText = '';
 
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
 function initApp() {
+    supabaseService = new VietLogixSupabaseService();
     rebuildEngineFromControls();
+    initAuthAndSupabasePortalUI();
     bindEvents();
     selectRepresentativeAttackedStep();
     updateCurrentSimulation(false);
@@ -280,10 +287,12 @@ function rebuildEngineFromControls() {
     const intensityInput = document.getElementById('input-intensity');
 
     engine = new WarehouseEnvironmentEngine({
-        seed: Number(seedInput.value || 2026),
-        epsilonFGSM: Number(epsInput.value || 0.15),
-        attackIntensity: Number(intensityInput.value || 0.30),
-        manualOverrides: manualOverridesState
+        seed: Number(seedInput ? seedInput.value : 2026),
+        epsilonFGSM: Number(epsInput ? epsInput.value : 0.15),
+        attackIntensity: Number(intensityInput ? intensityInput.value : 0.30),
+        manualOverrides: manualOverridesState,
+        warehouseOverrides: warehouseOverridesState,
+        customerDemandOverrides: customerDemandOverridesState
     });
 
     allSummary = engine.runAllScenariosSummary();
@@ -704,6 +713,7 @@ function updateCurrentSimulation(withFlash = false) {
     renderScenarioSpecificComparisonTable(currentScenarioId, currentModelMode);
     renderStepLogTable(currentSimResult.stepLogs);
     updateStepView(selectedOrderStep, withFlash);
+    syncAndRenderSupabasePortal();
 
     if (withFlash) {
         triggerVisualFlash('kpi-grid-container');
@@ -2016,4 +2026,859 @@ function showToast(msg) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3200);
+}
+
+/* ========================================================================= */
+/* PHÂN HỆ ĐĂNG NHẬP ADMIN / KHÁCH HÀNG & CƠ SỞ DỮ LIỆU SUPABASE (7 BẢNG)     */
+/* ========================================================================= */
+
+const SUPABASE_TABLE_META = {
+    don_hang_phan_bo: {
+        title: 'don_hang_phan_bo',
+        desc: 'Bảng <strong>don_hang_phan_bo</strong>: Lưu trữ toàn bộ 50 đơn đặt hàng của khách hàng trong ca vận hành, kho do mạng Dueling DQN đề xuất, kho thực thi sau rào chắn M3, giá trị Q(s,a), chi phí vận chuyển và trạng thái giao hàng.',
+        headers: [
+            { key: 'ma_don_hang', label: 'Mã đơn hàng' },
+            { key: 'ma_khach_hang', label: 'Mã KH' },
+            { key: 'ten_khach_hang', label: 'Tên Đại lý / Khách hàng' },
+            { key: 'nhu_cau_thuc_te', label: 'Nhu cầu thực (Tấn)' },
+            { key: 'nhu_cau_ai_quan_sat', label: 'AI quan sát (Tấn)' },
+            { key: 'kho_toi_uu_m0', label: 'Kho chuẩn (M0)' },
+            { key: 'kho_ai_de_xuat', label: 'Kho AI đề xuất' },
+            { key: 'kho_thuc_thi', label: 'Kho thực thi' },
+            { key: 'diem_q_value', label: 'Điểm Q(s,a)' },
+            { key: 'chi_phi_thuc_te', label: 'Chi phí thực' },
+            { key: 'hang_hoa_dut_gay_ud', label: 'Đứt gãy (UD)' },
+            { key: 'trang_thai_kiem_tra', label: 'Trạng thái đơn' },
+            { key: 'nguoi_tao', label: 'Nguồn tạo đơn' }
+        ]
+    },
+    kho_hang: {
+        title: 'kho_hang',
+        desc: 'Bảng <strong>kho_hang</strong>: Quản lý trạng thái vật lý của 50 Kho hàng phân phối (W₁ → W₅₀), tọa độ GPS, sức chứa ban đầu, tồn kho còn lại sau ca vận hành, trạng thái Đóng/Mở bảo trì (O_i) và giới hạn cầu cảng bốc xếp (l_max).',
+        headers: [
+            { key: 'ma_kho', label: 'Mã kho' },
+            { key: 'ten_kho', label: 'Tên kho phân phối' },
+            { key: 'khu_vuc', label: 'Khu vực vùng' },
+            { key: 'toa_do_x', label: 'Tọa độ X' },
+            { key: 'toa_do_y', label: 'Tọa độ Y' },
+            { key: 'suc_chua_ban_dau', label: 'Sức chứa gốc (Tấn)' },
+            { key: 'suc_chua_con_lai', label: 'Tồn kho còn lại (Tấn)' },
+            { key: 'trang_thai_mo', label: 'Trạng thái O_i (1=Mở, 0=Đóng)' },
+            { key: 'gioi_han_phuc_vu_lmax', label: 'Giới hạn bến l_max' },
+            { key: 'so_khach_dang_phuc_vu', label: 'Số đoàn xe đã nhận' },
+            { key: 'la_kho_chien_luoc', label: 'Kho Hub Chiến lược' }
+        ]
+    },
+    khach_hang: {
+        title: 'khach_hang',
+        desc: 'Bảng <strong>khach_hang</strong>: Danh mục 50 Đại lý / Siêu thị / Nhà máy khách hàng doanh nghiệp (U₁ → U₅₀), nhu cầu đặt hàng hiện tại (D_j), kho tối ưu chi phí và kết quả đáp ứng thực tế.',
+        headers: [
+            { key: 'ma_khach_hang', label: 'Mã KH' },
+            { key: 'ten_khach_hang', label: 'Tên Đại lý / Khách hàng' },
+            { key: 'loai_hinh', label: 'Loại hình doanh nghiệp' },
+            { key: 'toa_do_x', label: 'Tọa độ X' },
+            { key: 'toa_do_y', label: 'Tọa độ Y' },
+            { key: 'nhu_cau_dat_hang', label: 'Khối lượng đặt D_j (Tấn)' },
+            { key: 'kho_toi_uu_chuan', label: 'Kho tối ưu chuẩn' },
+            { key: 'chi_phi_toi_uu', label: 'Cước phí tối ưu' },
+            { key: 'trang_thai_phuc_vu', label: 'Trạng thái giao hàng' }
+        ]
+    },
+    nhat_ky_tan_cong_ai: {
+        title: 'nhat_ky_tan_cong_ai',
+        desc: 'Bảng <strong>nhat_ky_tan_cong_ai</strong>: Lưu vết kiểm toán an ninh SOC (Audit Log) cho mọi sự cố gói tin trạng thái bị tin tặc bơm nhiễu FGSM, so sánh giá trị thực tại kho với giá trị giả mạo gửi cho AI và quyết định xử lý của rào chắn M3.',
+        headers: [
+            { key: 'ma_su_co', label: 'Mã sự cố' },
+            { key: 'ten_kich_ban', label: 'Kịch bản tấn công' },
+            { key: 'thanh_vien_phu_trach', label: 'Thành viên' },
+            { key: 'ma_don_hang', label: 'Đơn hàng bị ảnh hưởng' },
+            { key: 'truong_bi_tan_cong', label: 'Trường vector bị sửa' },
+            { key: 'gia_tri_thuc_tai_kho', label: 'Dữ liệu thực tại kho' },
+            { key: 'goi_tin_gia_mao_ai', label: 'Gói tin giả mạo AI nhận' },
+            { key: 'trang_thai_xu_ly', label: 'Trạng thái phòng thủ' }
+        ]
+    },
+    bang_gia_van_chuyen: {
+        title: 'bang_gia_van_chuyen',
+        desc: 'Bảng <strong>bang_gia_van_chuyen</strong>: Ma trận cước phí vận tải giữa các kho ứng viên hàng đầu và 50 khách hàng, đối chiếu trực tiếp giữa Chi phí thực tế (C_real) và Chi phí quan sát của AI (C_obs) khi bị tấn công.',
+        headers: [
+            { key: 'id', label: 'STT' },
+            { key: 'ma_kho', label: 'Mã kho xuất' },
+            { key: 'ma_khach_hang', label: 'Mã khách nhận' },
+            { key: 'chi_phi_thuc_te', label: 'Cước phí thực (C_real)' },
+            { key: 'chi_phi_quan_sat_ai', label: 'Cước AI nhìn thấy (C_obs)' },
+            { key: 'bi_bom_nhieu_fgsm', label: 'Trạng thái toàn vẹn bảng giá' }
+        ]
+    },
+    lich_su_kiem_nghiem: {
+        title: 'lich_su_kiem_nghiem',
+        desc: 'Bảng <strong>lich_su_kiem_nghiem</strong>: Lưu trữ toàn bộ 36 bản ghi thực nghiệm (9 Kịch bản của 9 Thành viên × 4 Cấu hình mô hình M0, M1, M2, M3) với đầy đủ 8 chỉ số đánh giá Chương 4.',
+        headers: [
+            { key: 'kich_ban_so', label: 'KB' },
+            { key: 'thanh_vien', label: 'Thành viên' },
+            { key: 'cau_hinh_mo_hinh', label: 'Mô hình' },
+            { key: 'tong_chi_phi_tac', label: 'Tổng chi phí (TAC)' },
+            { key: 'ty_le_tang_chi_phi_delta', label: '% Tăng TAC' },
+            { key: 'chi_phi_trung_binh_atc', label: 'Chi phí TB (ATC)' },
+            { key: 'nhu_cau_chua_dap_ung_ud', label: 'Đứt gãy (UD)' },
+            { key: 'ty_le_dap_ung_dfr', label: 'Đáp ứng (DFR %)' },
+            { key: 'vi_pham_suc_chua_cv', label: 'Tràn kho (CV)' },
+            { key: 'vi_pham_gioi_han_lv', label: 'Quá tải bến (LV)' },
+            { key: 'ty_le_lenh_loi_ir', label: 'Lệnh lỗi (IR %)' },
+            { key: 'phan_thuong_trung_binh_ar', label: 'Reward (AR)' },
+            { key: 'thoi_gian_phuc_hoi_rt', label: 'Phục hồi (RT)' }
+        ]
+    },
+    nguoi_dung: {
+        title: 'nguoi_dung',
+        desc: 'Bảng <strong>nguoi_dung</strong>: Quản lý tài khoản đăng nhập và phân quyền (RBAC) cho Quản trị viên (Admin NOC), Khách hàng / Đại lý (U₁ → U₅₀) và Chuyên gia Kiểm thử Xâm nhập AI (Red Team).',
+        headers: [
+            { key: 'ho_ten', label: 'Họ và tên / Đơn vị' },
+            { key: 'email', label: 'Email đăng nhập' },
+            { key: 'vai_tro', label: 'Vai trò hệ thống' },
+            { key: 'ma_khach_hang_lien_ket', label: 'Đại lý liên kết' },
+            { key: 'chuc_vu', label: 'Chức vụ' },
+            { key: 'so_dien_thoai', label: 'Số điện thoại' },
+            { key: 'trang_thai', label: 'Trạng thái' },
+            { key: 'created_at', label: 'Ngày khởi tạo' }
+        ]
+    }
+};
+
+function initAuthAndSupabasePortalUI() {
+    if (!supabaseService || !engine) return;
+
+    // Điền danh sách 50 Khách hàng U1..U50 vào select của Customer Portal & Modal Đăng ký
+    const custSelect = document.getElementById('portal-select-customer');
+    const regCustSelect = document.getElementById('reg-customer-code');
+    if (custSelect) {
+        custSelect.innerHTML = engine.customers
+            .map((c, idx) => `<option value="${idx}">${c.code} – ${c.name} (Đơn hiện tại: ${c.initialDemand} tấn)</option>`)
+            .join('');
+    }
+    if (regCustSelect) {
+        regCustSelect.innerHTML = engine.customers
+            .map(c => `<option value="${c.code}">${c.code} – ${c.name}</option>`)
+            .join('');
+    }
+
+    // Điền danh sách 50 Kho hàng W1..W50 vào select của Admin Portal
+    const whSelect = document.getElementById('portal-select-warehouse');
+    if (whSelect) {
+        whSelect.innerHTML = engine.warehouses
+            .map(
+                (w, idx) =>
+                    `<option value="${idx}">${w.code} – ${w.name} (${w.openStatus === 1 ? 'Đang mở' : 'Đang đóng bảo trì'}, Cap: ${w.initialCapacity}t, l_max=${w.lmax})</option>`
+            )
+            .join('');
+    }
+
+    // Điền cấu hình Supabase URL & Key đã lưu (nếu có)
+    const urlInput = document.getElementById('input-supabase-url');
+    const keyInput = document.getElementById('input-supabase-key');
+    if (urlInput) urlInput.value = supabaseService.config.url || '';
+    if (keyInput) keyInput.value = supabaseService.config.anonKey || '';
+
+    // Tải trước nội dung tệp supabase_schema.sql để hiển thị khi bấm Xem SQL
+    fetch('supabase_schema.sql')
+        .then(r => (r.ok ? r.text() : ''))
+        .then(txt => {
+            if (txt) {
+                cachedSqlSchemaText = txt;
+                const pre = document.getElementById('sql-schema-preview-box');
+                if (pre) pre.textContent = txt;
+            }
+        })
+        .catch(() => {});
+
+    // Gắn sự kiện cho các nút trên thanh Top Auth Bar
+    document.querySelectorAll('.btn-role-switch').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const role = btn.getAttribute('data-quick-role');
+            switchRoleOneClick(role);
+        });
+    });
+
+    const btnOpenAuth = document.getElementById('btn-open-auth-modal');
+    const userChip = document.getElementById('current-user-chip');
+    const btnPortalLogin = document.getElementById('btn-portal-open-login');
+    const btnCloseAuth = document.getElementById('btn-close-auth-modal');
+    const authBackdrop = document.getElementById('auth-modal-backdrop');
+
+    [btnOpenAuth, userChip, btnPortalLogin].forEach(el => {
+        if (el) {
+            el.addEventListener('click', () => {
+                if (authBackdrop) authBackdrop.style.display = 'flex';
+            });
+        }
+    });
+
+    if (btnCloseAuth && authBackdrop) {
+        btnCloseAuth.addEventListener('click', () => {
+            authBackdrop.style.display = 'none';
+        });
+        authBackdrop.addEventListener('click', e => {
+            if (e.target === authBackdrop) authBackdrop.style.display = 'none';
+        });
+    }
+
+    // Nút mở nhanh Tab Supabase DB từ Header
+    const btnOpenSbTab = document.getElementById('btn-open-supabase-tab');
+    if (btnOpenSbTab) {
+        btnOpenSbTab.addEventListener('click', () => {
+            const navBtn = document.getElementById('nav-btn-supabase-portal');
+            if (navBtn) navBtn.click();
+        });
+    }
+
+    // Nút đăng nhập nhanh 1-click trong Modal
+    document.querySelectorAll('.demo-acc-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const email = btn.getAttribute('data-demo-email');
+            const pass = btn.getAttribute('data-demo-pass');
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-password').value = pass;
+            await handleLoginSubmit(email, pass);
+        });
+    });
+
+    // Nút Submit Đăng nhập
+    const btnSubmitLogin = document.getElementById('btn-submit-login');
+    if (btnSubmitLogin) {
+        btnSubmitLogin.addEventListener('click', async () => {
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-password').value;
+            await handleLoginSubmit(email, pass);
+        });
+    }
+
+    // Ẩn/hiện chọn Đại lý khi đổi vai trò lúc Đăng ký
+    const regRoleSelect = document.getElementById('reg-role');
+    if (regRoleSelect) {
+        regRoleSelect.addEventListener('change', e => {
+            const grp = document.getElementById('reg-customer-link-group');
+            if (grp) grp.style.display = e.target.value === 'customer' ? 'flex' : 'none';
+        });
+    }
+
+    // Nút Submit Đăng ký tài khoản mới
+    const btnSubmitReg = document.getElementById('btn-submit-register');
+    if (btnSubmitReg) {
+        btnSubmitReg.addEventListener('click', async () => {
+            const ho_ten = document.getElementById('reg-fullname').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const vai_tro = document.getElementById('reg-role').value;
+            const ma_khach_hang_lien_ket = document.getElementById('reg-customer-code').value;
+
+            const res = await supabaseService.registerUser({
+                email,
+                password,
+                ho_ten,
+                vai_tro,
+                ma_khach_hang_lien_ket
+            });
+            if (!res.ok) {
+                showToast(res.error);
+                return;
+            }
+            if (authBackdrop) authBackdrop.style.display = 'none';
+            applyLoggedInUserState(res.user);
+            syncAndRenderSupabasePortal();
+            showToast(`Đã đăng ký & đăng nhập tài khoản mới: ${res.user.ho_ten}!`);
+        });
+    }
+
+    // Sự kiện chọn Khách hàng trong Customer Portal
+    if (custSelect) {
+        custSelect.addEventListener('change', () => {
+            const cIdx = Number(custSelect.value);
+            const cust = engine.customers[cIdx];
+            if (cust) {
+                document.getElementById('portal-input-demand').value = cust.initialDemand;
+                renderCustomerPortalSummaryAndTicket(cIdx);
+            }
+        });
+    }
+
+    // Sự kiện Khách hàng Gửi Đơn Đặt Hàng mới
+    const btnCustOrder = document.getElementById('btn-customer-submit-order');
+    if (btnCustOrder) {
+        btnCustOrder.addEventListener('click', async () => {
+            const cIdx = Number(document.getElementById('portal-select-customer').value || 0);
+            const newDemand = Math.max(5, Math.min(220, Number(document.getElementById('portal-input-demand').value || 48)));
+            const user = supabaseService.currentUser;
+            const creatorLabel = user ? `${user.ho_ten} (${user.vai_tro.toUpperCase()})` : 'Khách hàng đặt trực tuyến';
+
+            customerDemandOverridesState[cIdx] = {
+                initialDemand: newDemand,
+                createdBy: creatorLabel
+            };
+
+            selectedOrderStep = cIdx + 1;
+            const slider = document.getElementById('slider-step');
+            if (slider) slider.value = selectedOrderStep;
+
+            rebuildEngineFromControls();
+            updateCurrentSimulation(true);
+            renderAllScenarioReportCards();
+            renderChapter4SummaryTables();
+            renderDatasetInspector();
+
+            if (supabaseService.isCloudConnected) {
+                supabaseService.syncAllTablesToSupabase().catch(() => {});
+            }
+
+            triggerVisualFlash('customer-order-ticket');
+            showToast(
+                `Đã lưu Đơn đặt hàng mới của ${engine.customers[cIdx].code} (${newDemand} tấn) vào bảng don_hang_phan_bo & phân bổ kho bằng Dueling DQN!`
+            );
+        });
+    }
+
+    // Nút Xem tuyến giao hàng của đơn này trên Bản đồ (Chuyển sang Tab 1 và soi đúng đơn hàng đó)
+    const btnViewOnMap = document.getElementById('btn-customer-view-on-map');
+    if (btnViewOnMap) {
+        btnViewOnMap.addEventListener('click', () => {
+            const cIdx = Number(document.getElementById('portal-select-customer').value || 0);
+            selectedOrderStep = cIdx + 1;
+            showAllRoutesOnMap = false;
+            const slider = document.getElementById('slider-step');
+            if (slider) slider.value = selectedOrderStep;
+            updateStepView(selectedOrderStep, true);
+            const tab1Btn = document.querySelector('.nav-tab-btn[data-tab="tab-visualizer"]');
+            if (tab1Btn) tab1Btn.click();
+            showToast(`Đang hiển thị tuyến vận chuyển của Đại lý ${engine.customers[cIdx].code} trên Bản đồ Điều phối!`);
+        });
+    }
+
+    // Sự kiện chọn Kho hàng trong Admin Portal
+    if (whSelect) {
+        whSelect.addEventListener('change', () => {
+            const wIdx = Number(whSelect.value);
+            populateAdminWarehouseForm(wIdx);
+        });
+    }
+
+    // Sự kiện Admin Lưu Trạng Thái Kho Hàng
+    const btnAdminSaveWh = document.getElementById('btn-admin-save-warehouse');
+    if (btnAdminSaveWh) {
+        btnAdminSaveWh.addEventListener('click', () => {
+            if (supabaseService.currentUser && supabaseService.currentUser.vai_tro === 'customer') {
+                showToast('Tài khoản Khách hàng không có quyền sửa kho vật lý! Hãy bấm "Chuyển Sang Tài Khoản Admin".');
+                return;
+            }
+            const wIdx = Number(document.getElementById('portal-select-warehouse').value || 0);
+            const newOpen = Number(document.getElementById('portal-warehouse-open').value);
+            const newCap = Math.max(0, Math.min(500, Number(document.getElementById('portal-warehouse-cap').value || 120)));
+            const newLmax = Math.max(1, Math.min(8, Number(document.getElementById('portal-warehouse-lmax').value || 2)));
+
+            warehouseOverridesState[wIdx] = {
+                openStatus: newOpen,
+                initialCapacity: newCap,
+                lmax: newLmax
+            };
+
+            rebuildEngineFromControls();
+            updateCurrentSimulation(true);
+            renderAllScenarioReportCards();
+            renderChapter4SummaryTables();
+            renderDatasetInspector();
+
+            if (supabaseService.isCloudConnected) {
+                supabaseService.syncAllTablesToSupabase().catch(() => {});
+            }
+
+            const w = engine.warehouses[wIdx];
+            showToast(
+                `Admin đã cập nhật ${w.code} trong bảng kho_hang (Trạng thái: ${newOpen === 1 ? 'Đang mở' : 'Đóng bảo trì'}, Sức chứa: ${newCap} tấn, l_max=${newLmax})!`
+            );
+        });
+    }
+
+    // Nút Mở khóa nhanh quyền Admin khi đang ở tài khoản Khách hàng
+    const btnUnlockAdmin = document.getElementById('btn-unlock-admin-now');
+    if (btnUnlockAdmin) {
+        btnUnlockAdmin.addEventListener('click', () => {
+            switchRoleOneClick('admin');
+        });
+    }
+
+    // Nút Khôi phục toàn bộ 50 Kho & 50 Khách hàng về dữ liệu gốc
+    const btnResetBusiness = document.getElementById('btn-portal-reset-business');
+    if (btnResetBusiness) {
+        btnResetBusiness.addEventListener('click', () => {
+            warehouseOverridesState = {};
+            customerDemandOverridesState = {};
+            manualOverridesState = {};
+            rebuildEngineFromControls();
+            updateCurrentSimulation(true);
+            renderAllScenarioReportCards();
+            renderChapter4SummaryTables();
+            renderDatasetInspector();
+            showToast('Đã khôi phục toàn bộ 50 Kho hàng và 50 Khách hàng về trạng thái chuẩn ban đầu!');
+        });
+    }
+
+    // Sự kiện Lưu & Kiểm tra kết nối Supabase Cloud
+    const btnSaveTestSb = document.getElementById('btn-save-test-supabase');
+    if (btnSaveTestSb) {
+        btnSaveTestSb.addEventListener('click', async () => {
+            const url = document.getElementById('input-supabase-url').value;
+            const key = document.getElementById('input-supabase-key').value;
+            supabaseService.saveConfig(url, key);
+            const msgBox = document.getElementById('supabase-sync-status-msg');
+            if (msgBox) msgBox.innerHTML = '<strong>Đang kiểm tra kết nối tới máy chủ Supabase Cloud...</strong>';
+            const res = await supabaseService.testConnection();
+            if (msgBox) {
+                msgBox.innerHTML = `<strong>Kết quả kiểm tra kết nối:</strong> ${res.message}`;
+            }
+            if (res.needsSchema) {
+                const sqlCol = document.getElementById('sql-schema-collapsible');
+                if (sqlCol) sqlCol.style.display = 'block';
+            }
+            updateSupabaseConnectionBadges();
+            showToast(res.message);
+        });
+    }
+
+    // Sự kiện Đồng bộ 7 bảng lên Supabase Cloud
+    const btnSyncAllSb = document.getElementById('btn-sync-all-supabase');
+    if (btnSyncAllSb) {
+        btnSyncAllSb.addEventListener('click', async () => {
+            const url = document.getElementById('input-supabase-url').value;
+            const key = document.getElementById('input-supabase-key').value;
+            if (url || key) supabaseService.saveConfig(url, key);
+            const msgBox = document.getElementById('supabase-sync-status-msg');
+            if (msgBox) msgBox.innerHTML = '<strong>Đang đồng bộ 7 bảng dữ liệu doanh nghiệp lên Supabase Cloud...</strong>';
+            const res = await supabaseService.syncAllTablesToSupabase();
+            if (msgBox) {
+                msgBox.innerHTML = `<strong>Trạng thái đồng bộ Supabase:</strong> ${res.message}`;
+            }
+            updateSupabaseConnectionBadges();
+            showToast(res.message);
+        });
+    }
+
+    // Sự kiện Xem / Sao chép mã SQL tạo 7 bảng
+    const btnToggleSql = document.getElementById('btn-toggle-sql-schema');
+    if (btnToggleSql) {
+        btnToggleSql.addEventListener('click', () => {
+            const sqlCol = document.getElementById('sql-schema-collapsible');
+            if (sqlCol) {
+                sqlCol.style.display = sqlCol.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+    }
+
+    const btnCopySql = document.getElementById('btn-copy-sql-schema');
+    if (btnCopySql) {
+        btnCopySql.addEventListener('click', () => {
+            const textToCopy =
+                cachedSqlSchemaText || document.getElementById('sql-schema-preview-box').textContent || '';
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showToast('Đã sao chép mã SQL tạo 7 bảng (supabase_schema.sql) vào bộ nhớ tạm!');
+            });
+        });
+    }
+
+    // Sự kiện chọn 1 trong 7 bảng trên Supabase Table Explorer
+    document.querySelectorAll('.db-table-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.db-table-tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeSupabaseTable = btn.getAttribute('data-db-table');
+            renderActiveSupabaseTable();
+        });
+    });
+
+    // Ô tìm kiếm nhanh trong bảng Supabase
+    const searchInput = document.getElementById('input-db-table-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderActiveSupabaseTable();
+        });
+    }
+
+    // Nút Xuất bảng đang xem ra CSV
+    const btnExportCsv = document.getElementById('btn-export-active-table-csv');
+    if (btnExportCsv) {
+        btnExportCsv.addEventListener('click', () => {
+            exportActiveSupabaseTableToCSV();
+        });
+    }
+
+    // Khởi tạo trạng thái người dùng hiện tại
+    applyLoggedInUserState(supabaseService.currentUser);
+    populateAdminWarehouseForm(0);
+}
+
+async function handleLoginSubmit(email, pass) {
+    const res = await supabaseService.login(email, pass);
+    if (!res.ok) {
+        showToast(res.error);
+        return;
+    }
+    const authBackdrop = document.getElementById('auth-modal-backdrop');
+    if (authBackdrop) authBackdrop.style.display = 'none';
+    applyLoggedInUserState(res.user);
+    syncAndRenderSupabasePortal();
+    showToast(`Đăng nhập thành công: ${res.user.ho_ten} (${res.source})!`);
+}
+
+function switchRoleOneClick(role) {
+    let targetEmail = 'admin@vietlogix.vn';
+    if (role === 'customer') targetEmail = 'khachhang.u1@vietlogix.vn';
+    if (role === 'redteam') targetEmail = 'redteam@vietlogix.vn';
+
+    const user =
+        supabaseService.users.find(u => u.email.toLowerCase() === targetEmail) ||
+        supabaseService.users.find(u => u.vai_tro === role) ||
+        supabaseService.users[0];
+
+    supabaseService.setCurrentUser(user);
+    applyLoggedInUserState(user);
+    syncAndRenderSupabasePortal();
+
+    if (role === 'customer') {
+        const navBtn = document.getElementById('nav-btn-supabase-portal');
+        if (navBtn) navBtn.click();
+        showToast(`Đã chuyển sang giao diện Khách hàng: ${user.ho_ten}. Bạn có thể đặt đơn hàng mới ngay!`);
+    } else if (role === 'admin') {
+        showToast(`Đã chuyển sang quyền Quản trị viên: ${user.ho_ten} (Toàn quyền quản lý 50 Kho & SOC)!`);
+    } else {
+        const tab1Btn = document.querySelector('.nav-tab-btn[data-tab="tab-visualizer"]');
+        if (tab1Btn) tab1Btn.click();
+        showToast(`Đã chuyển sang chế độ Red Team: ${user.ho_ten} (Kiểm thử bơm nhiễu đối kháng FGSM)!`);
+    }
+}
+
+function applyLoggedInUserState(user) {
+    if (!user) return;
+
+    const nameEl = document.getElementById('current-user-name');
+    const roleEl = document.getElementById('current-user-role-label');
+    const dotEl = document.getElementById('current-user-dot');
+
+    const roleMap = {
+        admin: { label: 'VAI TRÒ: QUẢN TRỊ VIÊN (ADMIN NOC)', dotClass: 'role-dot role-admin' },
+        customer: {
+            label: `VAI TRÒ: KHÁCH HÀNG (${user.ma_khach_hang_lien_ket || 'ĐẠI LÝ'})`,
+            dotClass: 'role-dot role-customer'
+        },
+        redteam: { label: 'VAI TRÒ: CHUYÊN GIA KIỂM THỬ (RED TEAM)', dotClass: 'role-dot role-redteam' }
+    };
+    const rInfo = roleMap[user.vai_tro] || roleMap.admin;
+
+    if (nameEl) nameEl.textContent = user.ho_ten;
+    if (roleEl) roleEl.textContent = rInfo.label;
+    if (dotEl) dotEl.className = rInfo.dotClass;
+
+    document.querySelectorAll('.btn-role-switch').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-quick-role') === user.vai_tro);
+    });
+
+    // Cập nhật Banner chào mừng và phân quyền trên Tab 2 (Cổng Nghiệp Vụ & Supabase)
+    const welcomeTitle = document.getElementById('portal-welcome-title');
+    const welcomeDesc = document.getElementById('portal-welcome-desc');
+    const adminLock = document.getElementById('admin-lock-overlay');
+    const adminBadge = document.getElementById('admin-permission-badge');
+
+    if (user.vai_tro === 'customer') {
+        if (welcomeTitle)
+            welcomeTitle.textContent = `🛒 Xin chào Khách hàng: ${user.ho_ten} (Tài khoản: ${user.email})!`;
+        if (welcomeDesc)
+            welcomeDesc.textContent =
+                'Bạn đang truy cập Cổng Đặt Hàng Đại Lý (OMS). Hãy gửi yêu cầu đặt hàng bên dưới để mạng Dueling DQN phân bổ kho xuất hàng tối ưu và theo dõi cảnh báo nếu đơn hàng bị tin tặc can thiệp.';
+        if (adminLock) adminLock.style.display = 'flex';
+        if (adminBadge) {
+            adminBadge.textContent = 'Chỉ xem (Cần quyền Admin)';
+            adminBadge.className = 'status-pill status-err';
+        }
+        // Tự động chọn đúng Đại lý liên kết (VD: U1, U4, U12) trên dropdown khách hàng
+        if (user.ma_khach_hang_lien_ket && engine) {
+            const idx = engine.customers.findIndex(c => c.code === user.ma_khach_hang_lien_ket);
+            if (idx >= 0) {
+                const custSelect = document.getElementById('portal-select-customer');
+                if (custSelect) {
+                    custSelect.value = String(idx);
+                    document.getElementById('portal-input-demand').value = engine.customers[idx].initialDemand;
+                }
+            }
+        }
+    } else if (user.vai_tro === 'redteam') {
+        if (welcomeTitle)
+            welcomeTitle.textContent = `💀 Xin chào Chuyên gia Kiểm thử: ${user.ho_ten} (${user.email})!`;
+        if (welcomeDesc)
+            welcomeDesc.textContent =
+                'Bạn đang ở chế độ Red Team AI Pentester. Bạn có thể kiểm tra nhật ký sự cố trong bảng nhat_ky_tan_cong_ai và thực hành bơm nhiễu FGSM trực tiếp tại Tab 1.';
+        if (adminLock) adminLock.style.display = 'none';
+        if (adminBadge) {
+            adminBadge.textContent = 'Quyền: RED TEAM / ADMIN';
+            adminBadge.className = 'status-pill status-warn';
+        }
+    } else {
+        if (welcomeTitle)
+            welcomeTitle.textContent = `👨‍💼 Xin chào Quản trị viên: ${user.ho_ten} (${user.email})!`;
+        if (welcomeDesc)
+            welcomeDesc.textContent =
+                'Bạn đang có toàn quyền quản trị 50 Kho hàng phân phối (WMS), điều phối 50 Đơn hàng khách hàng (OMS) và đồng bộ trực tiếp 7 bảng dữ liệu với cơ sở dữ liệu Supabase.';
+        if (adminLock) adminLock.style.display = 'none';
+        if (adminBadge) {
+            adminBadge.textContent = 'Toàn quyền: ADMIN NOC';
+            adminBadge.className = 'status-pill status-ok';
+        }
+    }
+
+    updateSupabaseConnectionBadges();
+}
+
+function updateSupabaseConnectionBadges() {
+    if (!supabaseService) return;
+    const topLabel = document.getElementById('sb-status-label');
+    const badge = document.getElementById('supabase-connection-badge');
+    if (supabaseService.isCloudConnected) {
+        if (topLabel) topLabel.textContent = '☁️ Supabase Cloud: Đã kết nối';
+        if (badge) {
+            badge.textContent = '☁️ Đã liên kết Supabase Cloud REST API';
+            badge.className = 'status-pill status-ok';
+        }
+    } else {
+        if (topLabel) topLabel.textContent = '🗄️ Supabase DB (7 Bảng)';
+        if (badge) {
+            badge.textContent = '🗄️ Chế độ: CSDL Doanh Nghiệp Sẵn Sàng (7 Bảng)';
+            badge.className = 'status-pill status-ok';
+        }
+    }
+}
+
+function populateAdminWarehouseForm(wIdx) {
+    if (!engine || !engine.warehouses[wIdx]) return;
+    const w = engine.warehouses[wIdx];
+    const openSel = document.getElementById('portal-warehouse-open');
+    const capInp = document.getElementById('portal-warehouse-cap');
+    const lmaxInp = document.getElementById('portal-warehouse-lmax');
+    if (openSel) openSel.value = String(w.openStatus);
+    if (capInp) capInp.value = w.initialCapacity;
+    if (lmaxInp) lmaxInp.value = w.lmax;
+    renderAdminWarehouseSummary(wIdx);
+}
+
+function renderAdminWarehouseSummary(wIdx) {
+    const box = document.getElementById('portal-warehouse-summary');
+    if (!box || !engine || !allSummary) return;
+    const w = engine.warehouses[wIdx];
+    const simRes = allSummary.resultsByScenario[currentScenarioId][currentModelMode];
+    const remCap = simRes.finalRealState ? simRes.finalRealState.capacity[wIdx] : w.initialCapacity;
+    const served = simRes.finalRealState ? simRes.finalRealState.servedCount[wIdx] : 0;
+
+    box.innerHTML = `
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <span><strong>${w.code}</strong> – ${w.name} (${w.region})</span>
+            <span>Tọa độ: <strong>(${w.x.toFixed(1)}, ${w.y.toFixed(1)})</strong></span>
+        </div>
+        <div style="margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap;">
+            <span>Trạng thái hiện tại: <strong>${w.openStatus === 1 ? '🟢 Đang mở cửa (1)' : '🔴 Đang đóng bảo trì (0)'}</strong></span>
+            <span>Tồn kho đầu ca: <strong>${w.initialCapacity} tấn</strong> → Cuối ca còn: <strong>${remCap} tấn</strong></span>
+            <span>Số đoàn xe phục vụ trong ca: <strong>${served} / ${w.lmax} xe</strong></span>
+        </div>
+    `;
+}
+
+function renderCustomerPortalSummaryAndTicket(cIdx) {
+    if (!engine || !allSummary) return;
+    const cust = engine.customers[cIdx];
+    if (!cust) return;
+
+    const simRes = allSummary.resultsByScenario[currentScenarioId][currentModelMode];
+    const m0Log = allSummary.baselineM0.stepLogs[cIdx];
+    const curLog = simRes.stepLogs[cIdx];
+    const m1Log = allSummary.resultsByScenario[currentScenarioId].M1.stepLogs[cIdx];
+
+    const summaryBox = document.getElementById('portal-customer-summary');
+    if (summaryBox) {
+        summaryBox.innerHTML = `
+            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span>Đơn vị: <strong>${cust.code} – ${cust.name}</strong></span>
+                <span>Tọa độ GPS: <strong>(${cust.x.toFixed(1)}, ${cust.y.toFixed(1)})</strong></span>
+                <span>Kho tối ưu chuẩn (M0): <strong>${m0Log.finalWarehouse} (Cước: ${m0Log.realCost} đv tiền)</strong></span>
+            </div>
+        `;
+    }
+
+    const ticketBox = document.getElementById('customer-order-ticket');
+    if (!ticketBox || !curLog) return;
+
+    const isTamperedInM1 =
+        m1Log.isInvalidProposal || m1Log.unserved > 0 || m1Log.realCost > m0Log.realCost + 8 || m1Log.status !== 'HỢP LỆ';
+    const statusBadge =
+        curLog.unserved === 0 && curLog.status === 'HỢP LỆ'
+            ? '<span class="status-pill status-ok">✓ ĐÃ PHÂN BỔ &amp; GIAO ĐỦ 100% HÀNG</span>'
+            : `<span class="status-pill status-err">⚠ SỰ CỐ: ${curLog.status} (Thiếu ${curLog.unserved} tấn)</span>`;
+
+    ticketBox.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+            <strong style="color: #38bdf8;">📄 PHIẾU PHÂN BỔ ĐƠN HÀNG #DH-2026-${String(curLog.step).padStart(3, '0')} (${cust.code}) – Chế độ ${currentModelMode}</strong>
+            ${statusBadge}
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 8px; font-size: 12.5px;">
+            <div>• Khối lượng đặt thực tế: <strong>${curLog.realDemand} tấn</strong> (AI nhận: <strong>${curLog.observedDemand} tấn</strong>)</div>
+            <div>• Kho AI đề xuất: <strong>${curLog.proposedWarehouse}</strong> (Q = ${curLog.qValue})</div>
+            <div>• Kho xuất hàng thực tế: <strong>${curLog.finalWarehouse}</strong></div>
+            <div>• Chi phí vận chuyển: <strong>${curLog.realCost} đv tiền</strong> (Chuẩn M0: ${m0Log.realCost})</div>
+        </div>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(148,163,184,0.18); font-size: 12px; color: #cbd5e1;">
+            <strong>Chẩn đoán An ninh AI (${SCENARIO_METADATA[currentScenarioId].code}):</strong>
+            ${
+                isTamperedInM1
+                    ? `${m1Log.explain.tamperedField}: Thực tế <code>${m1Log.explain.realValStr}</code> bị tin tặc sửa thành <code>${m1Log.explain.spoofedValStr}</code>. ${
+                          currentModelMode === 'M3'
+                              ? '<span style="color:#6ee7b7;font-weight:700;">→ Rào chắn M3 đã chặn lệnh sai và bảo vệ đơn hàng của bạn!</span>'
+                              : '<span style="color:#fca5a5;font-weight:700;">→ Đơn hàng đang bị ảnh hưởng bởi tấn công AI (Hãy bật Bước 5 / M3 để bảo vệ)!</span>'
+                      }`
+                    : 'Gói tin đơn hàng hoàn toàn sạch và khớp chữ ký số OMS.'
+            }
+        </div>
+    `;
+}
+
+function syncAndRenderSupabasePortal() {
+    if (!supabaseService || !engine || !allSummary) return;
+
+    supabaseService.populateTablesFromEngine(
+        engine,
+        allSummary,
+        currentScenarioId,
+        currentModelMode,
+        SCENARIO_METADATA
+    );
+
+    // Cập nhật số lượng bản ghi trên 7 tab bảng Supabase
+    Object.keys(supabaseService.tables).forEach(tblName => {
+        const cntEl = document.getElementById(`cnt-${tblName}`);
+        if (cntEl) cntEl.textContent = supabaseService.tables[tblName].length;
+    });
+
+    // Cập nhật lại nhãn trong dropdown Khách hàng & Kho hàng
+    const custSelect = document.getElementById('portal-select-customer');
+    if (custSelect) {
+        const prevVal = custSelect.value || '0';
+        Array.from(custSelect.options).forEach((opt, idx) => {
+            const c = engine.customers[idx];
+            if (c) opt.textContent = `${c.code} – ${c.name} (Đơn hiện tại: ${c.initialDemand} tấn)`;
+        });
+        custSelect.value = prevVal;
+        renderCustomerPortalSummaryAndTicket(Number(prevVal));
+    }
+
+    const whSelect = document.getElementById('portal-select-warehouse');
+    if (whSelect) {
+        const prevW = whSelect.value || '0';
+        Array.from(whSelect.options).forEach((opt, idx) => {
+            const w = engine.warehouses[idx];
+            if (w) {
+                opt.textContent = `${w.code} – ${w.name} (${w.openStatus === 1 ? 'Đang mở' : 'Đang đóng bảo trì'}, Cap: ${w.initialCapacity}t, l_max=${w.lmax})`;
+            }
+        });
+        whSelect.value = prevW;
+        renderAdminWarehouseSummary(Number(prevW));
+    }
+
+    renderActiveSupabaseTable();
+}
+
+function renderActiveSupabaseTable() {
+    if (!supabaseService) return;
+    const meta = SUPABASE_TABLE_META[activeSupabaseTable];
+    const thead = document.getElementById('supabase-explorer-thead');
+    const tbody = document.getElementById('supabase-explorer-tbody');
+    const descBox = document.getElementById('db-active-table-desc');
+    if (!meta || !thead || !tbody) return;
+
+    if (descBox) descBox.innerHTML = meta.desc;
+
+    thead.innerHTML = `<tr>${meta.headers.map(h => `<th>${h.label}</th>`).join('')}</tr>`;
+
+    const rawRows = supabaseService.tables[activeSupabaseTable] || [];
+    const query = (document.getElementById('input-db-table-search')?.value || '').trim().toLowerCase();
+
+    const filteredRows = query
+        ? rawRows.filter(r =>
+              Object.values(r).some(val => String(val ?? '').toLowerCase().includes(query))
+          )
+        : rawRows;
+
+    if (filteredRows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${meta.headers.length}" style="text-align:center;color:#94a3b8;padding:18px;">Không tìm thấy bản ghi nào khớp với từ khóa "${query}".</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filteredRows
+        .map(row => {
+            const tds = meta.headers
+                .map(h => {
+                    const val = row[h.key];
+                    if (h.key === 'trang_thai_kiem_tra' || h.key === 'trang_thai_xu_ly' || h.key === 'bi_bom_nhieu_fgsm') {
+                        const str = String(val ?? '');
+                        const isOk =
+                            str === 'HỢP LỆ' ||
+                            str === 'Bình thường' ||
+                            str.includes('Đã chặn') ||
+                            str.includes('CHẶN');
+                        const cls = isOk ? 'status-ok' : str.includes('M2') ? 'status-warn' : 'status-err';
+                        return `<td><span class="status-pill ${cls}">${str}</span></td>`;
+                    }
+                    if (h.key === 'trang_thai_mo') {
+                        return `<td>${
+                            Number(val) === 1
+                                ? '<span class="status-pill status-ok">1 – Đang mở</span>'
+                                : '<span class="status-pill status-err">0 – Đóng bảo trì</span>'
+                        }</td>`;
+                    }
+                    if (h.key === 'vai_tro') {
+                        const rStr =
+                            val === 'admin'
+                                ? '👨‍💼 Admin NOC'
+                                : val === 'customer'
+                                ? '🛒 Khách hàng'
+                                : '💀 Red Team';
+                        return `<td><strong>${rStr}</strong></td>`;
+                    }
+                    return `<td>${val !== null && val !== undefined ? val : '—'}</td>`;
+                })
+                .join('');
+            return `<tr>${tds}</tr>`;
+        })
+        .join('');
+}
+
+function exportActiveSupabaseTableToCSV() {
+    if (!supabaseService) return;
+    const meta = SUPABASE_TABLE_META[activeSupabaseTable];
+    const rows = supabaseService.tables[activeSupabaseTable] || [];
+    if (!meta || rows.length === 0) {
+        showToast('Bảng hiện tại không có dữ liệu để xuất!');
+        return;
+    }
+
+    const headerLine = meta.headers.map(h => `"${h.label}"`).join(',');
+    const bodyLines = rows.map(r =>
+        meta.headers
+            .map(h => {
+                const v = r[h.key] !== null && r[h.key] !== undefined ? String(r[h.key]).replace(/"/g, '""') : '';
+                return `"${v}"`;
+            })
+            .join(',')
+    );
+    const csvContent = '\uFEFF' + [headerLine, ...bodyLines].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `supabase_${activeSupabaseTable}_kb${currentScenarioId}_${currentModelMode}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Đã xuất bảng "${activeSupabaseTable}" (${rows.length} bản ghi) ra tệp CSV!`);
 }

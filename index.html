@@ -7,36 +7,63 @@
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <!-- HEADER DOANH NGHIỆP -->
+    <!-- HEADER DOANH NGHIỆP & THANH ĐĂNG NHẬP ĐA VAI TRÒ (ADMIN / KHÁCH HÀNG / RED TEAM) -->
     <header class="app-header">
         <div class="header-brand">
             <h1>TRUNG TÂM ĐIỀU HÀNH LOGISTICS VIETLOGIX AI (NOC) – MÔ PHỎNG SỰ CỐ TẤN CÔNG MẠNG DUELING DQN</h1>
-            <p>Hệ thống Tự động Phân bổ 50 Kho Hàng Phân Phối (W₁..W₅₀) cho 50 Đại Lý / Khách Hàng (U₁..U₅₀) • Kịch bản Thực chiến 9 Thành Viên</p>
+            <p>Hệ thống Tự động Phân bổ 50 Kho Hàng Phân Phối (W₁..W₅₀) cho 50 Đại Lý / Khách Hàng (U₁..U₅₀) • Kịch bản Thực chiến 9 Thành Viên • Tích hợp CSDL Supabase</p>
         </div>
-        <div class="header-badges">
-            <span class="spec-badge">Bộ não AI: Dueling DQN</span>
-            <span class="spec-badge">State Vector: 2.650 / 2.750 chiều</span>
-            <span class="spec-badge">Action Space: 50 Kho (A = 0..49)</span>
-            <span class="spec-badge">Tương tác: Thời gian thực (0ms)</span>
+        <div class="header-right-stack">
+            <div class="auth-topbar">
+                <div class="current-user-chip" id="current-user-chip" title="Bấm để mở hộp thoại Đăng nhập / Đăng ký">
+                    <span class="role-dot role-admin" id="current-user-dot"></span>
+                    <div>
+                        <strong id="current-user-name">Nguyễn Quản Trị (Admin NOC)</strong>
+                        <small id="current-user-role-label">VAI TRÒ: QUẢN TRỊ VIÊN (ADMIN)</small>
+                    </div>
+                </div>
+                <div class="quick-role-switcher">
+                    <span class="quick-role-title">Chuyển vai trò 1-Click:</span>
+                    <button class="btn-role-switch active" data-quick-role="admin" title="Đăng nhập nhanh quyền Quản trị viên Kho & Điều hành NOC">
+                        👨‍💼 Admin NOC
+                    </button>
+                    <button class="btn-role-switch" data-quick-role="customer" title="Đăng nhập nhanh quyền Khách hàng / Đại lý đặt đơn hàng">
+                        🛒 Khách Hàng (U1..U50)
+                    </button>
+                    <button class="btn-role-switch" data-quick-role="redteam" title="Đăng nhập nhanh quyền Chuyên gia Kiểm thử Xâm nhập AI (Red Team)">
+                        💀 Red Team
+                    </button>
+                </div>
+                <button id="btn-open-auth-modal" class="btn-auth-login">
+                    🔐 Đăng Nhập / Đăng Ký
+                </button>
+                <button id="btn-open-supabase-tab" class="btn-supabase-status">
+                    <span class="sb-dot" id="sb-status-dot"></span>
+                    <span id="sb-status-label">🗄️ Supabase DB (7 Bảng)</span>
+                </button>
+            </div>
         </div>
     </header>
 
-    <!-- THANH ĐIỀU HƯỚNG 5 PHÂN HỆ (100% TIẾNG VIỆT) -->
+    <!-- THANH ĐIỀU HƯỚNG 6 PHÂN HỆ (100% TIẾNG VIỆT) -->
     <nav class="nav-tabs-bar">
         <button class="nav-tab-btn active" data-tab="tab-visualizer">
             1. Bàn Điều Hành &amp; Trình Diễn Tấn Công Từng Bước (Demo 9 Thành Viên)
         </button>
+        <button class="nav-tab-btn" data-tab="tab-supabase-portal" id="nav-btn-supabase-portal">
+            2. Cổng Nghiệp Vụ (Admin &amp; Khách Hàng) + CSDL Supabase (7 Bảng)
+        </button>
         <button class="nav-tab-btn" data-tab="tab-scenarios-detail">
-            2. Hồ Sơ Chi Tiết &amp; Bảng Số Liệu 9 Kịch Bản (Thành Viên 1 → 9)
+            3. Hồ Sơ Chi Tiết &amp; Bảng Số Liệu 9 Kịch Bản (Thành Viên 1 → 9)
         </button>
         <button class="nav-tab-btn" data-tab="tab-chapter4-summary">
-            3. Báo Cáo Tổng Hợp Chương 4 (Mục 4.5 &amp; 4.6 – So Sánh M0, M1, M2, M3)
+            4. Báo Cáo Tổng Hợp Chương 4 (Mục 4.5 &amp; 4.6 – So Sánh M0, M1, M2, M3)
         </button>
         <button class="nav-tab-btn" data-tab="tab-dataset-inspector">
-            4. Cơ Sở Dữ Liệu Doanh Nghiệp (50 Kho, 50 Khách Hàng, Vector 2.750 Chiều)
+            5. Vector Trạng Thái 2.750 Chiều (50 Kho × 50 Khách Hàng)
         </button>
         <button class="nav-tab-btn" data-tab="tab-security-center">
-            5. Trung Tâm SOC – Kiểm Duyệt Gói Tin Rác &amp; Phòng Thủ Đa Lớp
+            6. Trung Tâm SOC – Kiểm Duyệt Gói Tin Rác &amp; Phòng Thủ Đa Lớp
         </button>
     </nav>
 
@@ -733,11 +760,309 @@
                 </div>
             </div>
         </section>
+
+        <!-- =================================================================== -->
+        <!-- TAB 2: CỔNG NGHIỆP VỤ (ADMIN & KHÁCH HÀNG) + CSDL SUPABASE (7 BẢNG)   -->
+        <!-- =================================================================== -->
+        <section id="tab-supabase-portal" class="tab-panel">
+            <!-- BANNER TRẠNG THÁI VAI TRÒ & KẾT NỐI SUPABASE -->
+            <div class="portal-role-banner" id="portal-role-banner">
+                <div>
+                    <strong id="portal-welcome-title">Xin chào Quản trị viên Nguyễn Quản Trị (Admin NOC)!</strong>
+                    <p id="portal-welcome-desc">
+                        Bạn đang có toàn quyền quản trị 50 Kho hàng (WMS), điều phối 50 Đơn hàng khách hàng (OMS), giám sát sự cố tấn công AI và đồng bộ trực tiếp 7 bảng dữ liệu với Supabase PostgreSQL.
+                    </p>
+                </div>
+                <div class="portal-banner-actions">
+                    <button class="btn-primary btn-sm" id="btn-portal-open-login">🔐 Đổi Tài Khoản Đăng Nhập</button>
+                    <button class="btn-secondary btn-sm" id="btn-portal-reset-business">↺ Khôi Phục Dữ Liệu Gốc (50 Kho &amp; 50 Khách)</button>
+                </div>
+            </div>
+
+            <!-- LƯỚI 2 CỘT: CỔNG ĐẶT HÀNG KHÁCH HÀNG (OMS) & BẢNG QUẢN TRỊ KHO ADMIN (WMS) -->
+            <div class="visualizer-grid" style="margin-bottom: 18px;">
+                <!-- CỘT TRÁI: CỔNG DÀNH CHO KHÁCH HÀNG / ĐẠI LÝ ĐẶT HÀNG (CUSTOMER PORTAL) -->
+                <div class="panel-card portal-card-customer" id="portal-customer-box">
+                    <div class="panel-header">
+                        <div>
+                            <h3>🛒 Cổng Khách Hàng &amp; Đại Lý Đặt Hàng Trực Tuyến (OMS Portal)</h3>
+                            <p class="text-muted">Dành cho 50 Đại lý / Siêu thị / Nhà máy (U₁ → U₅₀) gửi yêu cầu đặt hàng và theo dõi kho được AI phân bổ</p>
+                        </div>
+                        <span class="status-pill status-ok">Bảng: khach_hang &amp; don_hang_phan_bo</span>
+                    </div>
+
+                    <div class="portal-form-grid">
+                        <div class="control-group">
+                            <label>Chọn Đại lý / Khách hàng đang giao dịch (U₁ → U₅₀)</label>
+                            <select id="portal-select-customer" class="select-input"></select>
+                        </div>
+                        <div class="control-group">
+                            <label>Khối lượng hàng hóa yêu cầu đặt (D_j – Đơn vị: Tấn)</label>
+                            <input type="number" id="portal-input-demand" class="number-input" min="5" max="180" value="48" />
+                        </div>
+                    </div>
+
+                    <div class="portal-info-strip" id="portal-customer-summary">
+                        <!-- Render động thông tin khách hàng -->
+                    </div>
+
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+                        <button id="btn-customer-submit-order" class="btn-primary">
+                            📦 Gửi Đơn Đặt Hàng Vào Supabase &amp; Chạy AI Phân Bổ Kho Ngay
+                        </button>
+                        <button id="btn-customer-view-on-map" class="btn-secondary">
+                            🗺️ Xem Tuyến Giao Hàng Của Đơn Này Trên Bản Đồ
+                        </button>
+                    </div>
+
+                    <!-- PHIẾU KẾT QUẢ PHÂN BỔ ĐƠN HÀNG THỜI GIAN THỰC CHO KHÁCH HÀNG -->
+                    <div id="customer-order-ticket" class="order-ticket-card">
+                        <!-- Render động phiếu theo dõi đơn hàng -->
+                    </div>
+                </div>
+
+                <!-- CỘT PHẢI: BẢNG ĐIỀU HÀNH KHO VẬN DÀNH CHO ADMIN (ADMIN WMS PANEL) -->
+                <div class="panel-card portal-card-admin" id="portal-admin-box">
+                    <div class="panel-header">
+                        <div>
+                            <h3>👨‍💼 Bảng Quản Trị Hệ Thống Kho Phân Phối Dành Cho Admin (WMS Panel)</h3>
+                            <p class="text-muted">Cập nhật đóng/mở bảo trì kho, điều chỉnh tồn kho khả dụng (Cap_i) và giới hạn cầu cảng bốc xếp (l_max)</p>
+                        </div>
+                        <span class="status-pill status-warn" id="admin-permission-badge">Quyền: ADMIN NOC</span>
+                    </div>
+
+                    <div id="admin-lock-overlay" class="admin-lock-notice" style="display: none;">
+                        <span>🔒 Bạn đang đăng nhập với tư cách <strong>Khách hàng</strong>. Chỉ <strong>Quản trị viên (Admin)</strong> mới được phép đóng/mở kho hoặc sửa tồn kho vật lý.</span>
+                        <button id="btn-unlock-admin-now" class="btn-primary btn-sm">👨‍💼 Chuyển Sang Tài Khoản Admin Ngay</button>
+                    </div>
+
+                    <div id="admin-controls-container">
+                        <div class="portal-form-grid">
+                            <div class="control-group">
+                                <label>Chọn Kho hàng cần điều chỉnh (W₁ → W₅₀)</label>
+                                <select id="portal-select-warehouse" class="select-input"></select>
+                            </div>
+                            <div class="control-group">
+                                <label>Trạng thái hoạt động vật lý của kho (Open Status O_i)</label>
+                                <select id="portal-warehouse-open" class="select-input">
+                                    <option value="1">🟢 1 – Đang mở cửa hoạt động bình thường</option>
+                                    <option value="0">🔴 0 – Đang đóng cửa bảo trì hệ thống</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label>Sức chứa tồn kho khả dụng (Cap_i – Đơn vị: Tấn)</label>
+                                <input type="number" id="portal-warehouse-cap" class="number-input" min="0" max="500" value="150" />
+                            </div>
+                            <div class="control-group">
+                                <label>Giới hạn số đoàn xe phục vụ tối đa (l_max – Cầu cảng)</label>
+                                <input type="number" id="portal-warehouse-lmax" class="number-input" min="1" max="8" value="2" />
+                            </div>
+                        </div>
+
+                        <div class="portal-info-strip" id="portal-warehouse-summary">
+                            <!-- Render động thông tin kho hàng -->
+                        </div>
+
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
+                            <button id="btn-admin-save-warehouse" class="btn-primary">
+                                💾 Lưu Trạng Thái Kho Vào Supabase &amp; Tính Lại Phân Bổ Dueling DQN
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CẤU HÌNH LIÊN KẾT SUPABASE CLOUD & ĐỒNG BỘ 7 BẢNG CƠ SỞ DỮ LIỆU -->
+            <div class="panel-card" style="margin-bottom: 18px;">
+                <div class="panel-header">
+                    <div>
+                        <h3>☁️ Liên Kết Cơ Sở Dữ Liệu Supabase PostgreSQL &amp; Quản Lý Schema 7 Bảng Doanh Nghiệp</h3>
+                        <p class="text-muted">
+                            Hệ thống tự động vận hành trên CSDL Bền vững Cục bộ (Local Persistent DB) và đồng bộ trực tiếp qua REST API với Supabase Cloud của bạn khi nhập Project URL &amp; Anon Key.
+                        </p>
+                    </div>
+                    <span id="supabase-connection-badge" class="status-pill status-ok">Chế độ: CSDL Doanh Nghiệp Sẵn Sàng (7 Bảng)</span>
+                </div>
+
+                <div class="supabase-config-grid">
+                    <div class="control-group">
+                        <label>Supabase Project URL (Ví dụ: https://xyzcompany.supabase.co)</label>
+                        <input type="text" id="input-supabase-url" class="text-input" placeholder="https://your-project-id.supabase.co" />
+                    </div>
+                    <div class="control-group">
+                        <label>Supabase Anon Public Key (eyJhbGciOiJIUzI1NiIsInR5cCI6...)</label>
+                        <input type="password" id="input-supabase-key" class="text-input" placeholder="Nhập Anon Key từ mục Project Settings -> API của Supabase" />
+                    </div>
+                    <div class="control-group" style="justify-content: flex-end;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button id="btn-save-test-supabase" class="btn-primary btn-sm">🔌 Lưu &amp; Kiểm Tra Kết Nối</button>
+                            <button id="btn-sync-all-supabase" class="btn-secondary btn-sm">☁️ Đồng Bộ 7 Bảng Lên Supabase Cloud</button>
+                            <button id="btn-toggle-sql-schema" class="btn-secondary btn-sm">📜 Xem / Sao Chép Mã SQL Tạo 7 Bảng</button>
+                            <a href="supabase_schema.sql" download="supabase_schema.sql" class="btn-secondary btn-sm">↓ Tải tệp supabase_schema.sql</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="supabase-sync-status-msg" class="analysis-callout" style="margin-top: 10px;">
+                    <strong>Trạng thái CSDL:</strong> Toàn bộ 7 bảng nghiệp vụ (<code>nguoi_dung</code>, <code>kho_hang</code>, <code>khach_hang</code>, <code>bang_gia_van_chuyen</code>, <code>don_hang_phan_bo</code>, <code>nhat_ky_tan_cong_ai</code>, <code>lich_su_kiem_nghiem</code>) đang được đồng bộ thời gian thực với bộ mô phỏng Dueling DQN.
+                </div>
+
+                <!-- KHUNG HIỂN THỊ MÃ SQL SCHEMA SUPABASE -->
+                <div id="sql-schema-collapsible" style="display: none; margin-top: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="color: #38bdf8;">Mã SQL Khởi Tạo 7 Bảng Nghiệp Vụ Trong Supabase SQL Editor (supabase_schema.sql):</strong>
+                        <button id="btn-copy-sql-schema" class="btn-primary btn-sm">📋 Sao Chép Toàn Bộ Mã SQL</button>
+                    </div>
+                    <pre id="sql-schema-preview-box" class="console-log-box" style="max-height: 260px;"></pre>
+                </div>
+            </div>
+
+            <!-- TRÌNH QUẢN TRỊ & KHÁM PHÁ TRỰC TIẾP 7 BẢNG DỮ LIỆU KINH DOANH SUPABASE -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div>
+                        <h3>🗄️ Trình Quản Trị Dữ Liệu 7 Bảng Hoạt Động Kinh Doanh Doanh Nghiệp (Supabase Table Explorer)</h3>
+                        <p class="text-muted">Bấm chọn từng bảng bên dưới để kiểm tra dữ liệu trực tiếp. Mọi thao tác đặt hàng, sửa kho hoặc bơm nhiễu tấn công đều cập nhật tức thời vào các bảng này!</p>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" id="input-db-table-search" class="text-input" placeholder="🔍 Tìm nhanh trong bảng..." style="width: 220px;" />
+                        <button id="btn-export-active-table-csv" class="btn-secondary btn-sm">📥 Xuất Bảng Này Ra CSV</button>
+                    </div>
+                </div>
+
+                <!-- 7 NÚT CHỌN BẢNG SUPABASE -->
+                <div class="db-table-tabs" id="db-table-tabs">
+                    <button class="db-table-tab-btn active" data-db-table="don_hang_phan_bo">
+                        📦 1. don_hang_phan_bo <span class="badge-cnt" id="cnt-don_hang_phan_bo">50</span>
+                    </button>
+                    <button class="db-table-tab-btn" data-db-table="kho_hang">
+                        🏭 2. kho_hang <span class="badge-cnt" id="cnt-kho_hang">50</span>
+                    </button>
+                    <button class="db-table-tab-btn" data-db-table="khach_hang">
+                        🛒 3. khach_hang <span class="badge-cnt" id="cnt-khach_hang">50</span>
+                    </button>
+                    <button class="db-table-tab-btn" data-db-table="nhat_ky_tan_cong_ai">
+                        🚨 4. nhat_ky_tan_cong_ai <span class="badge-cnt" id="cnt-nhat_ky_tan_cong_ai">0</span>
+                    </button>
+                    <button class="db-table-tab-btn" data-db-table="bang_gia_van_chuyen">
+                        🚚 5. bang_gia_van_chuyen <span class="badge-cnt" id="cnt-bang_gia_van_chuyen">250</span>
+                    </button>
+                    <button class="db-table-tab-btn" data-db-table="lich_su_kiem_nghiem">
+                        📊 6. lich_su_kiem_nghiem <span class="badge-cnt" id="cnt-lich_su_kiem_nghiem">36</span>
+                    </button>
+                    <button class="db-table-tab-btn" data-db-table="nguoi_dung">
+                        👥 7. nguoi_dung <span class="badge-cnt" id="cnt-nguoi_dung">5</span>
+                    </button>
+                </div>
+
+                <div id="db-active-table-desc" class="db-table-description">
+                    Bảng <strong>don_hang_phan_bo</strong>: Lưu trữ toàn bộ đơn đặt hàng của 50 khách hàng trong ca vận hành, kho do mạng Dueling DQN đề xuất, kho thực thi sau rào chắn M3, giá trị Q(s,a), chi phí vận chuyển và trạng thái giao hàng.
+                </div>
+
+                <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                    <table class="report-table" id="supabase-explorer-table">
+                        <thead id="supabase-explorer-thead"></thead>
+                        <tbody id="supabase-explorer-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </main>
+
+    <!-- =================================================================== -->
+    <!-- MODAL ĐĂNG NHẬP & ĐĂNG KÝ TÀI KHOẢN (ADMIN / KHÁCH HÀNG / RED TEAM)   -->
+    <!-- =================================================================== -->
+    <div id="auth-modal-backdrop" class="modal-backdrop" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <h3>🔐 Đăng Nhập &amp; Phân Quyền Hệ Thống Logistics VietLogix AI (Supabase Auth)</h3>
+                    <p class="text-muted">Chọn nhanh tài khoản mẫu để thuyết trình hoặc đăng nhập / đăng ký tài khoản mới lưu trực tiếp vào bảng <code>nguoi_dung</code></p>
+                </div>
+                <button id="btn-close-auth-modal" class="btn-modal-close">✕</button>
+            </div>
+
+            <!-- ĐĂNG NHẬP NHANH 1-CLICK CHO BUỔI THUYẾT TRÌNH -->
+            <div class="demo-accounts-box">
+                <strong style="display: block; margin-bottom: 8px; color: #38bdf8;">⚡ Đăng nhập nhanh 1-Click (Tài khoản mẫu phục vụ Demo cho Cô giáo &amp; Nhóm):</strong>
+                <div class="demo-accounts-grid">
+                    <button class="demo-acc-btn" data-demo-email="admin@vietlogix.vn" data-demo-pass="admin123">
+                        <strong>👨‍💼 Quản Trị Viên (Admin NOC)</strong>
+                        <span>admin@vietlogix.vn • Toàn quyền sửa Kho &amp; SOC</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="khachhang.u1@vietlogix.vn" data-demo-pass="khach123">
+                        <strong>🛒 Khách Hàng Đại Lý U1</strong>
+                        <span>khachhang.u1@vietlogix.vn • Đặt đơn hàng Siêu thị U1</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="khachhang.u4@vietlogix.vn" data-demo-pass="khach123">
+                        <strong>🛒 Khách Hàng Đại Lý U4</strong>
+                        <span>khachhang.u4@vietlogix.vn • Đặt đơn hàng TTTM U4</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="redteam@vietlogix.vn" data-demo-pass="hacker123">
+                        <strong>💀 Chuyên Gia Red Team AI</strong>
+                        <span>redteam@vietlogix.vn • Kiểm thử bơm nhiễu FGSM</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="visualizer-grid" style="margin-top: 14px;">
+                <!-- FORM ĐĂNG NHẬP -->
+                <div class="auth-form-box">
+                    <h4>1. Đăng Nhập Tài Khoản Hiện Có</h4>
+                    <div class="control-group" style="margin-top: 8px;">
+                        <label>Email đăng nhập</label>
+                        <input type="email" id="login-email" class="text-input" value="admin@vietlogix.vn" />
+                    </div>
+                    <div class="control-group" style="margin-top: 8px;">
+                        <label>Mật khẩu</label>
+                        <input type="password" id="login-password" class="text-input" value="admin123" />
+                    </div>
+                    <button id="btn-submit-login" class="btn-primary" style="width: 100%; margin-top: 12px;">
+                        ➔ Đăng Nhập Vào Hệ Thống
+                    </button>
+                </div>
+
+                <!-- FORM ĐĂNG KÝ TÀI KHOẢN MỚI -->
+                <div class="auth-form-box">
+                    <h4>2. Đăng Ký Tài Khoản Khách Hàng / Admin Mới</h4>
+                    <div class="control-group" style="margin-top: 8px;">
+                        <label>Họ và tên người dùng / Tên đơn vị</label>
+                        <input type="text" id="reg-fullname" class="text-input" placeholder="VD: Nguyễn Văn A - Đại lý U15" />
+                    </div>
+                    <div class="control-group" style="margin-top: 8px;">
+                        <label>Email đăng ký</label>
+                        <input type="email" id="reg-email" class="text-input" placeholder="VD: daily.u15@vietlogix.vn" />
+                    </div>
+                    <div class="portal-form-grid" style="margin-top: 8px;">
+                        <div class="control-group">
+                            <label>Mật khẩu</label>
+                            <input type="password" id="reg-password" class="text-input" value="123456" />
+                        </div>
+                        <div class="control-group">
+                            <label>Vai trò hệ thống</label>
+                            <select id="reg-role" class="select-input">
+                                <option value="customer">🛒 Khách hàng / Đại lý</option>
+                                <option value="admin">👨‍💼 Quản trị viên (Admin)</option>
+                                <option value="redteam">💀 Chuyên gia Red Team</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="control-group" style="margin-top: 8px;" id="reg-customer-link-group">
+                        <label>Liên kết với Mã Đại Lý / Khách Hàng (U₁ → U₅₀)</label>
+                        <select id="reg-customer-code" class="select-input"></select>
+                    </div>
+                    <button id="btn-submit-register" class="btn-secondary" style="width: 100%; margin-top: 12px;">
+                        ✚ Tạo Tài Khoản Mới Trong Bảng nguoi_dung
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="app-toast" class="app-toast">Đã sao chép!</div>
 
     <script src="engine.js"></script>
+    <script src="supabase-service.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
