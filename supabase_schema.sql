@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.nguoi_dung (
     mat_khau_demo TEXT DEFAULT '123456',
     ho_ten TEXT NOT NULL,
     vai_tro TEXT NOT NULL DEFAULT 'customer' CHECK (vai_tro IN ('admin', 'customer', 'redteam')),
+    kich_ban_phu_trach INTEGER,
     ma_khach_hang_lien_ket TEXT, -- Ví dụ: 'U1'..'U50' cho tài khoản khách hàng
     chuc_vu TEXT,
     so_dien_thoai TEXT,
@@ -244,11 +245,19 @@ CREATE POLICY "Cho phep truy cap demo lich_su_kiem_nghiem"
     USING (true)
     WITH CHECK (true);
 
--- DỮ LIỆU TÀI KHOẢN MẪU BAN ĐẦU
-INSERT INTO public.nguoi_dung (email, mat_khau_demo, ho_ten, vai_tro, ma_khach_hang_lien_ket, chuc_vu, so_dien_thoai)
+-- DỮ LIỆU 9 TÀI KHOẢN CHO 9 KỊCH BẢN + ADMIN + KHÁCH HÀNG
+INSERT INTO public.nguoi_dung (email, mat_khau_demo, ho_ten, vai_tro, ma_khach_hang_lien_ket, kich_ban_phu_trach, chuc_vu, so_dien_thoai)
 VALUES
-    ('admin@vietlogix.vn', 'admin123', 'Nguyễn Quản Trị (Giám Đốc Điều Hành NOC)', 'admin', NULL, 'Quản trị viên Hệ thống & Kho vận', '0901234567'),
-    ('khachhang.u1@vietlogix.vn', 'khach123', 'Trần Đại Lý U1 (Siêu thị Bán lẻ U1)', 'customer', 'U1', 'Giám đốc Thu mua Đại lý U1', '0912345678'),
-    ('khachhang.u4@vietlogix.vn', 'khach123', 'Lê Đại Lý U4 (Trung tâm Thương mại U4)', 'customer', 'U4', 'Quản lý Chuỗi cung ứng U4', '0987654321'),
-    ('redteam@vietlogix.vn', 'hacker123', 'Phạm Kiểm Thử (Chuyên gia Red Team AI)', 'redteam', NULL, 'Kỹ sư Kiểm thử Xâm nhập AI', '0933445566')
+    ('admin@vietlogix.vn', 'admin123', 'Quản Trị Viên NOC', 'admin', NULL, NULL, 'Quản trị hệ thống & Kho vận', '0901000000'),
+    ('tv1@vietlogix.vn', '123456', 'Thành Viên 1 (Kịch bản 1)', 'redteam', 'U1', 1, 'Phụ trách KB1: Giả mạo đóng/mở kho', '0901000001'),
+    ('tv2@vietlogix.vn', '123456', 'Thành Viên 2 (Kịch bản 2)', 'redteam', 'U2', 2, 'Phụ trách KB2: Đầu độc chi phí vận chuyển', '0901000002'),
+    ('tv3@vietlogix.vn', '123456', 'Thành Viên 3 (Kịch bản 3)', 'redteam', 'U3', 3, 'Phụ trách KB3: Bóp méo sức chứa kho', '0901000003'),
+    ('tv4@vietlogix.vn', '123456', 'Thành Viên 4 (Kịch bản 4)', 'redteam', 'U4', 4, 'Phụ trách KB4: Làm giả nhu cầu khách hàng', '0901000004'),
+    ('tv5@vietlogix.vn', '123456', 'Thành Viên 5 (Kịch bản 5)', 'redteam', 'U5', 5, 'Phụ trách KB5: Tấn công 5 Kho Hub trung tâm', '0901000005'),
+    ('tv6@vietlogix.vn', '123456', 'Thành Viên 6 (Kịch bản 6)', 'redteam', 'U6', 6, 'Phụ trách KB6: Làm tràn giới hạn phục vụ l_max', '0901000006'),
+    ('tv7@vietlogix.vn', '123456', 'Thành Viên 7 (Kịch bản 7)', 'redteam', 'U31', 7, 'Phụ trách KB7: Tấn công ngắt quãng Bước 61-80', '0901000007'),
+    ('tv8@vietlogix.vn', '123456', 'Thành Viên 8 (Kịch bản 8)', 'redteam', 'U8', 8, 'Phụ trách KB8: Vượt lớp lọc Action Masking', '0901000008'),
+    ('tv9@vietlogix.vn', '123456', 'Thành Viên 9 (Kịch bản 9)', 'redteam', 'U9', 9, 'Phụ trách KB9: Đầu độc phần thưởng huấn luyện', '0901000009'),
+    ('khachhang.u1@vietlogix.vn', 'khach123', 'Đại Lý U1 (Siêu thị Bán lẻ U1)', 'customer', 'U1', NULL, 'Khách hàng đặt hàng U1', '0912345678'),
+    ('khachhang.u4@vietlogix.vn', 'khach123', 'Đại Lý U4 (Trung tâm Thương mại U4)', 'customer', 'U4', NULL, 'Khách hàng đặt hàng U4', '0987654321')
 ON CONFLICT (email) DO NOTHING;

@@ -1570,17 +1570,17 @@ function renderAllScenarioReportCards() {
                     </div>
                     <div class="scenario-card-actions">
                         <button class="btn-secondary btn-sm" onclick="jumpToScenarioSimulation(${s})">
-                            🎯 Mở Trình Diễn Trực Quan Kịch Bản Này
+                            Mở Mô Phỏng Kịch Bản ${s}
                         </button>
                         <button class="btn-primary btn-sm" onclick="copyScenarioTableMarkdown(${s})">
-                            📋 Sao chép Bảng & Nhận xét (Dán vào Word)
+                            Sao Chép Bảng &amp; Nhận Xét
                         </button>
                     </div>
                 </div>
                 <div class="scenario-card-body">
-                    <p><strong>🏢 Quy trình nghiệp vụ doanh nghiệp:</strong> ${meta.businessProcess}</p>
-                    <p><strong>💀 Các bước tấn công của tin tặc:</strong> ${meta.attackSteps.join(' → ')}</p>
-                    <p><strong>🧠 Cơ chế đánh lừa mạng Dueling DQN:</strong> ${meta.dqnMechanism}</p>
+                    <p><strong>Quy trình nghiệp vụ:</strong> ${meta.businessProcess}</p>
+                    <p><strong>Các bước tấn công:</strong> ${meta.attackSteps.join(' → ')}</p>
+                    <p><strong>Cơ chế tác động lên Dueling DQN:</strong> ${meta.dqnMechanism}</p>
                     <div class="table-responsive">
                         ${tableHtml}
                     </div>
@@ -2123,16 +2123,16 @@ const SUPABASE_TABLE_META = {
     },
     nguoi_dung: {
         title: 'nguoi_dung',
-        desc: 'Bảng <strong>nguoi_dung</strong>: Quản lý tài khoản đăng nhập và phân quyền (RBAC) cho Quản trị viên (Admin NOC), Khách hàng / Đại lý (U₁ → U₅₀) và Chuyên gia Kiểm thử Xâm nhập AI (Red Team).',
+        desc: 'Bảng <strong>nguoi_dung</strong>: Quản lý 9 tài khoản tương ứng 9 Kịch bản (tv1..tv9@vietlogix.vn), tài khoản Quản trị viên (Admin NOC) và Khách hàng / Đại lý (U₁ → U₅₀).',
         headers: [
             { key: 'ho_ten', label: 'Họ và tên / Đơn vị' },
             { key: 'email', label: 'Email đăng nhập' },
-            { key: 'vai_tro', label: 'Vai trò hệ thống' },
+            { key: 'mat_khau_demo', label: 'Mật khẩu' },
+            { key: 'vai_tro', label: 'Vai trò' },
+            { key: 'kich_ban_phu_trach', label: 'Kịch bản phụ trách' },
             { key: 'ma_khach_hang_lien_ket', label: 'Đại lý liên kết' },
-            { key: 'chuc_vu', label: 'Chức vụ' },
-            { key: 'so_dien_thoai', label: 'Số điện thoại' },
-            { key: 'trang_thai', label: 'Trạng thái' },
-            { key: 'created_at', label: 'Ngày khởi tạo' }
+            { key: 'chuc_vu', label: 'Chức vụ / Nhiệm vụ' },
+            { key: 'trang_thai', label: 'Trạng thái' }
         ]
     }
 };
@@ -2564,7 +2564,7 @@ function initAuthAndSupabasePortalUI() {
             const res = await supabaseService.syncAllTablesToSupabase();
             const msgBox = document.getElementById('supabase-sync-status-msg');
             if (msgBox && res.ok) {
-                msgBox.innerHTML = `<strong>🟢 Đã liên kết trực tiếp Supabase Cloud (Project: demo-atbmtt):</strong> ${res.message}`;
+                msgBox.innerHTML = `<strong>Trạng thái Supabase Cloud (demo-atbmtt):</strong> ${res.message}`;
             }
         }, 500);
     }
@@ -2589,14 +2589,14 @@ window.navigateToProtectedTab = function (targetId) {
     const topLabel = document.getElementById('sb-status-label');
     if (topLabel) {
         topLabel.textContent = check.allowed
-            ? `🛡️ Route: ${routePath} (200 OK)`
-            : `🔒 Route: ${routePath} (${check.code} Chặn)`;
+            ? `Route: ${routePath} (200 OK)`
+            : `Route: ${routePath} (${check.code} Chặn)`;
     }
 
     if (!check.allowed) {
         if (guardScreen) {
             guardScreen.style.display = 'block';
-            document.getElementById('guard-status-badge').textContent = `🛡️ ${check.statusText}`;
+            document.getElementById('guard-status-badge').textContent = check.statusText;
             document.getElementById('guard-route-path').textContent = `Tuyến đường yêu cầu: ${routePath}`;
             document.getElementById('guard-title').textContent =
                 check.code === 401
@@ -2607,12 +2607,12 @@ window.navigateToProtectedTab = function (targetId) {
             const u = supabaseService.currentUser;
             document.getElementById('guard-current-user').textContent = u
                 ? `${u.ho_ten} (Vai trò JWT: ${u.vai_tro.toUpperCase()})`
-                : 'Chưa đăng nhập (Anonymous / Signed Out)';
+                : 'Chưa đăng nhập (Signed Out)';
             document.getElementById('guard-allowed-roles').textContent = check.routeMeta.allowedRoles
                 .map(r => r.toUpperCase())
                 .join(', ');
         }
-        showToast(`Chốt chặn Protected Route (${check.code}): Tuyến đường ${routePath} yêu cầu quyền phù hợp!`);
+        showToast(`Chốt chặn Protected Route (${check.code}): Tuyến đường ${routePath} yêu cầu phân quyền phù hợp.`);
         return;
     }
 
@@ -2636,17 +2636,32 @@ async function handleLoginSubmit(email, pass) {
     const authBackdrop = document.getElementById('auth-modal-backdrop');
     if (authBackdrop) authBackdrop.style.display = 'none';
     applyLoggedInUserState(res.user);
+
+    // Nếu tài khoản gắn với Kịch bản 1..9 (tv1..tv9@vietlogix.vn), tự động chuyển sang kịch bản đó và mở Bàn điều hành
+    if (res.user && res.user.kich_ban_phu_trach) {
+        currentScenarioId = Number(res.user.kich_ban_phu_trach);
+        const scenarioSelect = document.getElementById('select-scenario');
+        if (scenarioSelect) scenarioSelect.value = String(currentScenarioId);
+        manualOverridesState = {};
+        rebuildEngineFromControls();
+        selectRepresentativeAttackedStep();
+        updateCurrentSimulation(true);
+        navigateToProtectedTab('tab-visualizer');
+        showToast(`Đã đăng nhập ${res.user.ho_ten} và kích hoạt Kịch bản ${currentScenarioId}!`);
+        return;
+    }
+
     syncAndRenderSupabasePortal();
     const activeBtn = document.querySelector('.nav-tab-btn.active');
     const currentTabId = activeBtn ? activeBtn.getAttribute('data-tab') : 'tab-visualizer';
     navigateToProtectedTab(currentTabId);
-    showToast(`Đăng nhập thành công: ${res.user.ho_ten} (${res.source})!`);
+    showToast(`Đăng nhập thành công: ${res.user.ho_ten}!`);
 }
 
 function switchRoleOneClick(role) {
     let targetEmail = 'admin@vietlogix.vn';
     if (role === 'customer') targetEmail = 'khachhang.u1@vietlogix.vn';
-    if (role === 'redteam') targetEmail = 'redteam@vietlogix.vn';
+    if (role === 'redteam') targetEmail = `tv${currentScenarioId}@vietlogix.vn`;
 
     const user =
         supabaseService.users.find(u => u.email.toLowerCase() === targetEmail) ||
@@ -2661,19 +2676,18 @@ function switchRoleOneClick(role) {
     const currentTabId = activeBtn ? activeBtn.getAttribute('data-tab') : 'tab-visualizer';
 
     if (role === 'customer') {
-        // Nếu đang ở Tab 5 hoặc Tab 6 (Tuyến đường cấm khách hàng) thì giữ nguyên để trình diễn màn hình Chốt chặn 403 Forbidden, ngược lại mở Cổng Khách hàng
         if (currentTabId === 'tab-dataset-inspector' || currentTabId === 'tab-security-center') {
             navigateToProtectedTab(currentTabId);
         } else {
             navigateToProtectedTab('tab-supabase-portal');
         }
-        showToast(`Đã chuyển sang tài khoản Khách hàng: ${user.ho_ten}. Các tuyến nội bộ (#/dataset, #/soc-admin) hiện được khóa bảo vệ (403)!`);
+        showToast(`Đang ở tài khoản Khách hàng: ${user.ho_ten}.`);
     } else if (role === 'admin') {
         navigateToProtectedTab(currentTabId);
-        showToast(`Đã chuyển sang quyền Quản trị viên: ${user.ho_ten} (Mở khóa toàn bộ 6 Protected Routes)!`);
+        showToast(`Đang ở tài khoản Quản trị viên: ${user.ho_ten}.`);
     } else {
-        navigateToProtectedTab(currentTabId === 'tab-security-center' ? 'tab-security-center' : 'tab-visualizer');
-        showToast(`Đã chuyển sang chế độ Red Team: ${user.ho_ten} (Kiểm thử bơm nhiễu đối kháng FGSM)!`);
+        navigateToProtectedTab('tab-visualizer');
+        showToast(`Đang ở tài khoản ${user.ho_ten}.`);
     }
 }
 
@@ -2683,8 +2697,8 @@ function applyLoggedInUserState(user) {
     const dotEl = document.getElementById('current-user-dot');
 
     if (!user) {
-        if (nameEl) nameEl.textContent = 'Chưa đăng nhập (Khách vãng lai)';
-        if (roleEl) roleEl.textContent = 'TRẠNG THÁI: ĐÃ ĐĂNG XUẤT (401 LOCKED)';
+        if (nameEl) nameEl.textContent = 'Chưa đăng nhập';
+        if (roleEl) roleEl.textContent = 'ĐÃ ĐĂNG XUẤT (401 LOCKED)';
         if (dotEl) dotEl.className = 'role-dot role-redteam';
         document.querySelectorAll('.btn-role-switch').forEach(btn => btn.classList.remove('active'));
         renderProtectedRoutesMatrix();
@@ -2692,12 +2706,17 @@ function applyLoggedInUserState(user) {
     }
 
     const roleMap = {
-        admin: { label: 'VAI TRÒ: QUẢN TRỊ VIÊN (ADMIN NOC)', dotClass: 'role-dot role-admin' },
+        admin: { label: 'QUẢN TRỊ VIÊN (ADMIN NOC)', dotClass: 'role-dot role-admin' },
         customer: {
-            label: `VAI TRÒ: KHÁCH HÀNG (${user.ma_khach_hang_lien_ket || 'ĐẠI LÝ'})`,
+            label: `KHÁCH HÀNG (${user.ma_khach_hang_lien_ket || 'ĐẠI LÝ'})`,
             dotClass: 'role-dot role-customer'
         },
-        redteam: { label: 'VAI TRÒ: CHUYÊN GIA KIỂM THỬ (RED TEAM)', dotClass: 'role-dot role-redteam' }
+        redteam: {
+            label: user.kich_ban_phu_trach
+                ? `THÀNH VIÊN KỊCH BẢN ${user.kich_ban_phu_trach}`
+                : 'THÀNH VIÊN KỊCH BẢN (RED TEAM)',
+            dotClass: 'role-dot role-redteam'
+        }
     };
     const rInfo = roleMap[user.vai_tro] || roleMap.admin;
 
@@ -2709,7 +2728,6 @@ function applyLoggedInUserState(user) {
         btn.classList.toggle('active', btn.getAttribute('data-quick-role') === user.vai_tro);
     });
 
-    // Cập nhật Banner chào mừng và phân quyền trên Tab 2 (Cổng Nghiệp Vụ & Supabase)
     const welcomeTitle = document.getElementById('portal-welcome-title');
     const welcomeDesc = document.getElementById('portal-welcome-desc');
     const adminLock = document.getElementById('admin-lock-overlay');
@@ -2717,16 +2735,15 @@ function applyLoggedInUserState(user) {
 
     if (user.vai_tro === 'customer') {
         if (welcomeTitle)
-            welcomeTitle.textContent = `🛒 Xin chào Khách hàng: ${user.ho_ten} (Tài khoản: ${user.email})!`;
+            welcomeTitle.textContent = `Tài khoản Khách hàng: ${user.ho_ten} (${user.email})`;
         if (welcomeDesc)
             welcomeDesc.textContent =
-                'Bạn đang truy cập Cổng Đặt Hàng Đại Lý (OMS). Hãy gửi yêu cầu đặt hàng bên dưới để mạng Dueling DQN phân bổ kho xuất hàng tối ưu và theo dõi cảnh báo nếu đơn hàng bị tin tặc can thiệp.';
+                'Gửi yêu cầu đặt hàng trên Cổng OMS để mạng Dueling DQN phân bổ kho xuất hàng và theo dõi trạng thái đơn hàng.';
         if (adminLock) adminLock.style.display = 'flex';
         if (adminBadge) {
-            adminBadge.textContent = 'Chỉ xem (Cần quyền Admin)';
+            adminBadge.textContent = 'Khóa chỉnh sửa (Cần quyền Admin)';
             adminBadge.className = 'status-pill status-err';
         }
-        // Tự động chọn đúng Đại lý liên kết (VD: U1, U4, U12) trên dropdown khách hàng
         if (user.ma_khach_hang_lien_ket && engine) {
             const idx = engine.customers.findIndex(c => c.code === user.ma_khach_hang_lien_ket);
             if (idx >= 0) {
@@ -2739,21 +2756,21 @@ function applyLoggedInUserState(user) {
         }
     } else if (user.vai_tro === 'redteam') {
         if (welcomeTitle)
-            welcomeTitle.textContent = `💀 Xin chào Chuyên gia Kiểm thử: ${user.ho_ten} (${user.email})!`;
+            welcomeTitle.textContent = `Tài khoản Kịch bản: ${user.ho_ten} (${user.email})`;
         if (welcomeDesc)
             welcomeDesc.textContent =
-                'Bạn đang ở chế độ Red Team AI Pentester. Bạn có thể kiểm tra nhật ký sự cố trong bảng nhat_ky_tan_cong_ai và thực hành bơm nhiễu FGSM trực tiếp tại Tab 1.';
+                `Phụ trách trình diễn và kiểm thử ${user.chuc_vu || 'kịch bản tấn công AI'}.`;
         if (adminLock) adminLock.style.display = 'none';
         if (adminBadge) {
-            adminBadge.textContent = 'Quyền: RED TEAM / ADMIN';
+            adminBadge.textContent = 'Quyền: THÀNH VIÊN KỊCH BẢN';
             adminBadge.className = 'status-pill status-warn';
         }
     } else {
         if (welcomeTitle)
-            welcomeTitle.textContent = `👨‍💼 Xin chào Quản trị viên: ${user.ho_ten} (${user.email})!`;
+            welcomeTitle.textContent = `Quản trị viên: ${user.ho_ten} (${user.email})`;
         if (welcomeDesc)
             welcomeDesc.textContent =
-                'Bạn đang có toàn quyền quản trị 50 Kho hàng phân phối (WMS), điều phối 50 Đơn hàng khách hàng (OMS) và đồng bộ trực tiếp 7 bảng dữ liệu với cơ sở dữ liệu Supabase.';
+                'Toàn quyền quản trị 50 Kho hàng (WMS), 50 Đơn hàng khách hàng (OMS) và đồng bộ 7 bảng dữ liệu với Supabase Cloud.';
         if (adminLock) adminLock.style.display = 'none';
         if (adminBadge) {
             adminBadge.textContent = 'Toàn quyền: ADMIN NOC';
@@ -2766,18 +2783,15 @@ function applyLoggedInUserState(user) {
 
 function updateSupabaseConnectionBadges() {
     if (!supabaseService) return;
-    const topLabel = document.getElementById('sb-status-label');
     const badge = document.getElementById('supabase-connection-badge');
     if (supabaseService.isCloudConnected) {
-        if (topLabel) topLabel.textContent = '☁️ Supabase Cloud: Đã kết nối';
         if (badge) {
-            badge.textContent = '☁️ Đã liên kết Supabase Cloud REST API';
+            badge.textContent = 'Đã liên kết Supabase Cloud (demo-atbmtt)';
             badge.className = 'status-pill status-ok';
         }
     } else {
-        if (topLabel) topLabel.textContent = '🗄️ Supabase DB (7 Bảng)';
         if (badge) {
-            badge.textContent = '🗄️ Chế độ: CSDL Doanh Nghiệp Sẵn Sàng (7 Bảng)';
+            badge.textContent = 'CSDL Doanh Nghiệp (7 Bảng)';
             badge.className = 'status-pill status-ok';
         }
     }
@@ -2809,9 +2823,9 @@ function renderAdminWarehouseSummary(wIdx) {
             <span>Tọa độ: <strong>(${w.x.toFixed(1)}, ${w.y.toFixed(1)})</strong></span>
         </div>
         <div style="margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap;">
-            <span>Trạng thái hiện tại: <strong>${w.openStatus === 1 ? '🟢 Đang mở cửa (1)' : '🔴 Đang đóng bảo trì (0)'}</strong></span>
-            <span>Tồn kho đầu ca: <strong>${w.initialCapacity} tấn</strong> → Cuối ca còn: <strong>${remCap} tấn</strong></span>
-            <span>Số đoàn xe phục vụ trong ca: <strong>${served} / ${w.lmax} xe</strong></span>
+            <span>Trạng thái: <strong>${w.openStatus === 1 ? 'Đang mở cửa (1)' : 'Đang đóng bảo trì (0)'}</strong></span>
+            <span>Tồn kho đầu ca: <strong>${w.initialCapacity} tấn</strong> → Cuối ca: <strong>${remCap} tấn</strong></span>
+            <span>Số đoàn xe phục vụ: <strong>${served} / ${w.lmax} xe</strong></span>
         </div>
     `;
 }
@@ -2844,30 +2858,30 @@ function renderCustomerPortalSummaryAndTicket(cIdx) {
         m1Log.isInvalidProposal || m1Log.unserved > 0 || m1Log.realCost > m0Log.realCost + 8 || m1Log.status !== 'HỢP LỆ';
     const statusBadge =
         curLog.unserved === 0 && curLog.status === 'HỢP LỆ'
-            ? '<span class="status-pill status-ok">✓ ĐÃ PHÂN BỔ &amp; GIAO ĐỦ 100% HÀNG</span>'
-            : `<span class="status-pill status-err">⚠ SỰ CỐ: ${curLog.status} (Thiếu ${curLog.unserved} tấn)</span>`;
+            ? '<span class="status-pill status-ok">ĐÃ PHÂN BỔ &amp; GIAO ĐỦ HÀNG</span>'
+            : `<span class="status-pill status-err">SỰ CỐ: ${curLog.status} (Thiếu ${curLog.unserved} tấn)</span>`;
 
     ticketBox.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
-            <strong style="color: #38bdf8;">📄 PHIẾU PHÂN BỔ ĐƠN HÀNG #DH-2026-${String(curLog.step).padStart(3, '0')} (${cust.code}) – Chế độ ${currentModelMode}</strong>
+            <strong style="color: #38bdf8;">PHIẾU PHÂN BỔ ĐƠN HÀNG #DH-2026-${String(curLog.step).padStart(3, '0')} (${cust.code}) – Chế độ ${currentModelMode}</strong>
             ${statusBadge}
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 8px; font-size: 12.5px;">
-            <div>• Khối lượng đặt thực tế: <strong>${curLog.realDemand} tấn</strong> (AI nhận: <strong>${curLog.observedDemand} tấn</strong>)</div>
-            <div>• Kho AI đề xuất: <strong>${curLog.proposedWarehouse}</strong> (Q = ${curLog.qValue})</div>
-            <div>• Kho xuất hàng thực tế: <strong>${curLog.finalWarehouse}</strong></div>
-            <div>• Chi phí vận chuyển: <strong>${curLog.realCost} đv tiền</strong> (Chuẩn M0: ${m0Log.realCost})</div>
+            <div>Khối lượng thực tế: <strong>${curLog.realDemand} tấn</strong> (AI nhận: <strong>${curLog.observedDemand} tấn</strong>)</div>
+            <div>Kho AI đề xuất: <strong>${curLog.proposedWarehouse}</strong> (Q = ${curLog.qValue})</div>
+            <div>Kho thực thi: <strong>${curLog.finalWarehouse}</strong></div>
+            <div>Chi phí vận chuyển: <strong>${curLog.realCost} đv tiền</strong> (Chuẩn M0: ${m0Log.realCost})</div>
         </div>
         <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(148,163,184,0.18); font-size: 12px; color: #cbd5e1;">
-            <strong>Chẩn đoán An ninh AI (${SCENARIO_METADATA[currentScenarioId].code}):</strong>
+            <strong>Trạng thái gói tin (${SCENARIO_METADATA[currentScenarioId].code}):</strong>
             ${
                 isTamperedInM1
-                    ? `${m1Log.explain.tamperedField}: Thực tế <code>${m1Log.explain.realValStr}</code> bị tin tặc sửa thành <code>${m1Log.explain.spoofedValStr}</code>. ${
+                    ? `${m1Log.explain.tamperedField}: Thực tế <code>${m1Log.explain.realValStr}</code> bị sửa thành <code>${m1Log.explain.spoofedValStr}</code>. ${
                           currentModelMode === 'M3'
-                              ? '<span style="color:#6ee7b7;font-weight:700;">→ Rào chắn M3 đã chặn lệnh sai và bảo vệ đơn hàng của bạn!</span>'
-                              : '<span style="color:#fca5a5;font-weight:700;">→ Đơn hàng đang bị ảnh hưởng bởi tấn công AI (Hãy bật Bước 5 / M3 để bảo vệ)!</span>'
+                              ? '<span style="color:#6ee7b7;font-weight:700;">→ Rào chắn M3 đã chặn lệnh sai và điều hướng an toàn.</span>'
+                              : '<span style="color:#fca5a5;font-weight:700;">→ Đơn hàng đang chịu tác động của tấn công AI.</span>'
                       }`
-                    : 'Gói tin đơn hàng hoàn toàn sạch và khớp chữ ký số OMS.'
+                    : 'Gói tin đơn hàng hợp lệ.'
             }
         </div>
     `;
@@ -2930,18 +2944,18 @@ function renderProtectedRoutesMatrix() {
         if (!u) {
             jwtBar.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                    <span>🔴 <strong>Phiên Supabase Auth:</strong> ĐÃ ĐĂNG XUẤT (Không có JWT Access Token)</span>
-                    <span class="status-pill status-err">Mọi Protected Routes đều trả về 401 Unauthorized</span>
+                    <span><strong>Phiên Supabase Auth:</strong> ĐÃ ĐĂNG XUẤT</span>
+                    <span class="status-pill status-err">401 Unauthorized</span>
                 </div>
             `;
         } else {
             const tokenPreview = sess && sess.access_token ? `${sess.access_token.slice(0, 28)}...` : 'sb-jwt-authenticated...';
             jwtBar.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                    <span>🟢 <strong>Phiên Supabase Auth đang hoạt động:</strong> <code>${u.email}</code></span>
-                    <span>Claim <code>app_metadata.vai_tro</code>: <strong>${u.vai_tro.toUpperCase()}</strong></span>
+                    <span><strong>Tài khoản:</strong> <code>${u.email}</code></span>
+                    <span>Vai trò: <strong>${u.vai_tro.toUpperCase()}</strong></span>
+                    ${u.kich_ban_phu_trach ? `<span>Kịch bản phụ trách: <strong>Kịch bản ${u.kich_ban_phu_trach}</strong></span>` : ''}
                     <span>Bearer JWT: <code>${tokenPreview}</code></span>
-                    <span>Postgres Role: <code>authenticated</code></span>
                 </div>
             `;
         }
@@ -2956,8 +2970,8 @@ function renderProtectedRoutesMatrix() {
                 .map(r => `<span class="code-pill" style="margin-right:4px;">${r.toUpperCase()}</span>`)
                 .join('');
             const statusHtml = check.allowed
-                ? '<span class="status-pill status-ok">✓ 200 OK – Được phép truy cập</span>'
-                : `<span class="status-pill status-err">🔒 ${check.code} – Bị chặn bởi Route Guard</span>`;
+                ? '<span class="status-pill status-ok">200 OK – Được phép</span>'
+                : `<span class="status-pill status-err">${check.code} – Bị chặn</span>`;
             return `
                 <tr>
                     <td><code><strong>${meta.route}</strong></code></td>
@@ -2967,7 +2981,7 @@ function renderProtectedRoutesMatrix() {
                     <td>${statusHtml}</td>
                     <td>
                         <button class="btn-secondary btn-sm" onclick="window.navigateToProtectedTab('${tabId}')">
-                            ➔ Kiểm thử mở ${meta.route}
+                            Mở ${meta.route}
                         </button>
                     </td>
                 </tr>
@@ -3027,11 +3041,14 @@ function renderActiveSupabaseTable() {
                     if (h.key === 'vai_tro') {
                         const rStr =
                             val === 'admin'
-                                ? '👨‍💼 Admin NOC'
+                                ? 'Admin NOC'
                                 : val === 'customer'
-                                ? '🛒 Khách hàng'
-                                : '💀 Red Team';
+                                ? 'Khách hàng'
+                                : 'Thành viên KB';
                         return `<td><strong>${rStr}</strong></td>`;
+                    }
+                    if (h.key === 'kich_ban_phu_trach') {
+                        return `<td>${val ? `<span class="status-pill status-warn">Kịch bản ${val}</span>` : 'Toàn hệ thống'}</td>`;
                     }
                     return `<td>${val !== null && val !== undefined ? val : '—'}</td>`;
                 })

@@ -7,78 +7,74 @@
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <!-- HEADER DOANH NGHIỆP & THANH ĐĂNG NHẬP ĐA VAI TRÒ (ADMIN / KHÁCH HÀNG / RED TEAM) -->
+    <!-- HEADER DOANH NGHIỆP & THANH ĐĂNG NHẬP ĐA VAI TRÒ -->
     <header class="app-header">
         <div class="header-brand">
-            <h1>TRUNG TÂM ĐIỀU HÀNH LOGISTICS VIETLOGIX AI (NOC) – MÔ PHỎNG SỰ CỐ TẤN CÔNG MẠNG DUELING DQN</h1>
-            <p>Hệ thống Tự động Phân bổ 50 Kho Hàng Phân Phối (W₁..W₅₀) cho 50 Đại Lý / Khách Hàng (U₁..U₅₀) • Kịch bản Thực chiến 9 Thành Viên • Tích hợp CSDL Supabase</p>
+            <h1>HỆ THỐNG ĐIỀU PHỐI LOGISTICS VIETLOGIX AI – MÔ PHỎNG TẤN CÔNG MẠNG DUELING DQN</h1>
+            <p>Phân bổ 50 Kho Hàng Phân Phối (W₁..W₅₀) cho 50 Khách Hàng (U₁..U₅₀) • 9 Kịch Bản Thực Nghiệm • Cơ Sở Dữ Liệu Supabase</p>
         </div>
         <div class="header-right-stack">
             <div class="auth-topbar">
-                <div class="current-user-chip" id="current-user-chip" title="Bấm để mở hộp thoại Đăng nhập / Đăng ký">
+                <div class="current-user-chip" id="current-user-chip">
                     <span class="role-dot role-admin" id="current-user-dot"></span>
                     <div>
-                        <strong id="current-user-name">Nguyễn Quản Trị (Admin NOC)</strong>
-                        <small id="current-user-role-label">VAI TRÒ: QUẢN TRỊ VIÊN (ADMIN)</small>
+                        <strong id="current-user-name">Quản Trị Viên NOC</strong>
+                        <small id="current-user-role-label">QUẢN TRỊ VIÊN (ADMIN)</small>
                     </div>
                 </div>
                 <div class="quick-role-switcher">
-                    <span class="quick-role-title">Chuyển vai trò 1-Click:</span>
-                    <button class="btn-role-switch active" data-quick-role="admin" title="Đăng nhập nhanh quyền Quản trị viên Kho & Điều hành NOC">
-                        👨‍💼 Admin NOC
+                    <button class="btn-role-switch active" data-quick-role="admin">
+                        Admin NOC
                     </button>
-                    <button class="btn-role-switch" data-quick-role="customer" title="Đăng nhập nhanh quyền Khách hàng / Đại lý đặt đơn hàng">
-                        🛒 Khách Hàng (U1..U50)
+                    <button class="btn-role-switch" data-quick-role="customer">
+                        Khách Hàng
                     </button>
-                    <button class="btn-role-switch" data-quick-role="redteam" title="Đăng nhập nhanh quyền Chuyên gia Kiểm thử Xâm nhập AI (Red Team)">
-                        💀 Red Team
+                    <button class="btn-role-switch" data-quick-role="redteam">
+                        Thành Viên KB 1–9
                     </button>
                 </div>
                 <button id="btn-open-auth-modal" class="btn-auth-login">
-                    🔐 Đăng Nhập / Đăng Ký
+                    Đăng Nhập (9 Kịch Bản)
                 </button>
-                <button id="btn-logout-user" class="btn-auth-logout" title="Đăng xuất khỏi phiên hiện tại để kiểm thử Màn hình Chốt chặn 401 Protected Route">
-                    🚪 Đăng Xuất
+                <button id="btn-logout-user" class="btn-auth-logout">
+                    Đăng Xuất
                 </button>
                 <button id="btn-open-supabase-tab" class="btn-supabase-status">
                     <span class="sb-dot" id="sb-status-dot"></span>
-                    <span id="sb-status-label">🛡️ Route: #/dashboard</span>
+                    <span id="sb-status-label">Route: #/dashboard</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- THANH ĐIỀU HƯỚNG 6 TUYẾN ĐƯỜNG ĐƯỢC BẢO VỆ (SUPABASE PROTECTED ROUTES) -->
+    <!-- THANH ĐIỀU HƯỚNG 6 TUYẾN ĐƯỜNG -->
     <nav class="nav-tabs-bar">
         <button class="nav-tab-btn active" data-tab="tab-visualizer" data-route="#/dashboard">
-            1. Bàn Điều Hành &amp; Trình Diễn Tấn Công Từng Bước (Demo 9 Thành Viên)
+            1. Bàn Điều Hành &amp; Mô Phỏng 9 Kịch Bản
         </button>
         <button class="nav-tab-btn" data-tab="tab-supabase-portal" data-route="#/portal" id="nav-btn-supabase-portal">
-            2. Cổng Nghiệp Vụ (Admin &amp; Khách Hàng) + Supabase Auth &amp; 7 Bảng
+            2. Nghiệp Vụ (Admin &amp; Khách Hàng) + CSDL Supabase
         </button>
         <button class="nav-tab-btn" data-tab="tab-scenarios-detail" data-route="#/scenarios">
-            3. Hồ Sơ Chi Tiết &amp; Bảng Số Liệu 9 Kịch Bản (Thành Viên 1 → 9)
+            3. Số Liệu Chi Tiết 9 Kịch Bản (TV 1 → TV 9)
         </button>
         <button class="nav-tab-btn" data-tab="tab-chapter4-summary" data-route="#/reports">
-            4. Báo Cáo Tổng Hợp Chương 4 (Mục 4.5 &amp; 4.6 – So Sánh M0, M1, M2, M3)
+            4. Báo Cáo Tổng Hợp Chương 4 (M0, M1, M2, M3)
         </button>
         <button class="nav-tab-btn" data-tab="tab-dataset-inspector" data-route="#/dataset">
-            🔒 5. Vector Nội Bộ 2.750 Chiều (Admin / Red Team)
+            5. Vector Trạng Thái 2.750 Chiều
         </button>
         <button class="nav-tab-btn" data-tab="tab-security-center" data-route="#/soc-admin">
-            🛡️ 6. Trung Tâm SOC &amp; Phòng Thủ Đa Lớp (Chỉ Admin)
+            6. Trung Tâm SOC &amp; Phòng Thủ Đa Lớp
         </button>
     </nav>
 
     <main class="main-container">
-        <!-- =================================================================== -->
         <!-- MÀN HÌNH CHỐT CHẶN TUYẾN ĐƯỜNG ĐƯỢC BẢO VỆ (SUPABASE PROTECTED ROUTE GUARD) -->
-        <!-- Hiển thị khi người dùng đã Đăng xuất (401) hoặc không đủ quyền RBAC (403) -->
-        <!-- =================================================================== -->
         <section id="protected-route-guard-screen" class="route-guard-screen" style="display: none;">
             <div class="route-guard-card">
                 <div class="route-guard-header">
-                    <span id="guard-status-badge" class="status-pill status-err">🛡️ 403 FORBIDDEN – PROTECTED ROUTE</span>
+                    <span id="guard-status-badge" class="status-pill status-err">403 FORBIDDEN – PROTECTED ROUTE</span>
                     <span id="guard-route-path" class="code-pill">Route: #/soc-admin</span>
                 </div>
                 <h2 id="guard-title">Tuyến Đường Được Bảo Vệ Bởi Supabase Auth &amp; RBAC Route Guard</h2>
@@ -88,28 +84,28 @@
 
                 <div class="route-guard-details-grid">
                     <div class="route-guard-detail-box">
-                        <span class="detail-label">Trạng thái phiên Supabase Auth (JWT)</span>
+                        <span class="detail-label">Phiên Supabase Auth (JWT)</span>
                         <strong id="guard-current-user">Khách hàng Đại lý U1 (customer)</strong>
                     </div>
                     <div class="route-guard-detail-box">
-                        <span class="detail-label">Vai trò được phép truy cập Route này</span>
+                        <span class="detail-label">Vai trò yêu cầu</span>
                         <strong id="guard-allowed-roles" style="color: #38bdf8;">QUẢN TRỊ VIÊN (ADMIN NOC)</strong>
                     </div>
                     <div class="route-guard-detail-box">
-                        <span class="detail-label">Chính sách Bảo mật Supabase</span>
-                        <strong id="guard-policy-rule" style="color: #6ee7b7;">Route Guard Middleware + Postgres RLS (TO authenticated)</strong>
+                        <span class="detail-label">Chính sách Bảo mật</span>
+                        <strong id="guard-policy-rule" style="color: #6ee7b7;">Route Guard Middleware + Postgres RLS</strong>
                     </div>
                 </div>
 
                 <div class="route-guard-actions">
                     <button id="btn-guard-login-admin" class="btn-primary">
-                        👨‍💼 Đăng Nhập Nhanh Quyền Admin NOC Để Mở Khóa Route Này
+                        Đăng Nhập Quyền Admin NOC
                     </button>
                     <button id="btn-guard-open-login-modal" class="btn-secondary">
-                        🔐 Mở Hộp Thoại Đăng Nhập Supabase Auth
+                        Chọn Tài Khoản Khác
                     </button>
                     <button id="btn-guard-back-safe-route" class="btn-secondary">
-                        🛒 Quay Về Tuyến Đường Được Phép (Cổng Nghiệp Vụ #/portal)
+                        Quay Về Cổng Nghiệp Vụ (#/portal)
                     </button>
                 </div>
             </div>
@@ -159,94 +155,93 @@
                     </button>
                 </div>
 
-                <!-- THANH QUY TRÌNH DEMO 5 BƯỚC THỰC CHIẾN (RÕ RÀNG Ý NGHĨA TỪNG NÚT BẤM) -->
+                <!-- THANH QUY TRÌNH DEMO 5 BƯỚC -->
                 <div class="workflow-stepper-box">
                     <div class="workflow-header">
                         <div class="workflow-header-title">
-                            <span>🎯 QUY TRÌNH THAO TÁC TRÌNH DIỄN 5 BƯỚC (Bấm lần lượt Bước 1 → Bước 5 để xem hệ thống phản hồi theo thời gian thực):</span>
+                            <span>QUY TRÌNH MÔ PHỎNG 5 BƯỚC:</span>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                             <button id="btn-auto-demo-5steps" class="btn-primary btn-sm">
-                                🎬 Tự Động Trình Chiếu 5 Bước Kịch Bản Này
+                                Tự Động Chạy 5 Bước
                             </button>
                             <button id="btn-jump-attacked-order" class="btn-danger-glow btn-sm">
-                                🔍 Nhảy Tới Đơn Hàng Bị Đánh Lừa Điển Hình
+                                Chọn Đơn Hàng Bị Tấn Công
                             </button>
                         </div>
                     </div>
 
                     <div class="workflow-steps-grid">
                         <button class="wf-step-btn" data-wf="1">
-                            <span class="wf-step-num">Bước 1 • Bình thường (M0)</span>
-                            <span class="wf-step-title">🏢 1. Vận Hành Chuẩn</span>
-                            <span class="wf-step-desc">Dữ liệu IoT/WMS sạch. AI phân bổ tối ưu 50 đơn (Chi phí 1.550, 0 lỗi).</span>
+                            <span class="wf-step-num">Bước 1 • M0</span>
+                            <span class="wf-step-title">1. Vận Hành Chuẩn</span>
+                            <span class="wf-step-desc">Dữ liệu sạch, phân bổ tối ưu 50 đơn hàng.</span>
                         </button>
                         <button class="wf-step-btn" data-wf="2">
-                            <span class="wf-step-num">Bước 2 • Can thiệp gói tin</span>
-                            <span class="wf-step-title">💀 2. Tin Tặc Bơm Nhiễu</span>
-                            <span class="wf-step-desc">Mở Bảng Bơm Nhiễu Trực Tiếp bên dưới để sửa gói tin &amp; xem điểm Q biến đổi!</span>
+                            <span class="wf-step-num">Bước 2 • Can thiệp</span>
+                            <span class="wf-step-title">2. Bơm Nhiễu Gói Tin</span>
+                            <span class="wf-step-desc">Can thiệp trực tiếp các trường trạng thái đầu vào.</span>
                         </button>
                         <button class="wf-step-btn active" data-wf="3">
-                            <span class="wf-step-num">Bước 3 • Sự cố bùng phát (M1)</span>
-                            <span class="wf-step-title">⚠️ 3. AI Sập Bẫy &amp; Thiệt Hại</span>
-                            <span class="wf-step-desc">AI chốt lệnh điều xe theo điểm Q giả, gây tràn kho, kẹt bến &amp; đội chi phí.</span>
+                            <span class="wf-step-num">Bước 3 • M1</span>
+                            <span class="wf-step-title">3. Tác Động Tấn Công</span>
+                            <span class="wf-step-desc">Mạng DQN điều phối sai theo điểm Q bị bóp méo.</span>
                         </button>
                         <button class="wf-step-btn" data-wf="4">
-                            <span class="wf-step-num">Bước 4 • Phòng thủ AI (M2)</span>
-                            <span class="wf-step-title">🛡️ 4. Huấn Luyện Đối Kháng</span>
-                            <span class="wf-step-desc">Kích hoạt mạng Dueling DQN đã học đối kháng min-max để kháng nhiễu FGSM.</span>
+                            <span class="wf-step-num">Bước 4 • M2</span>
+                            <span class="wf-step-title">4. Huấn Luyện Đối Kháng</span>
+                            <span class="wf-step-desc">Kháng nhiễu FGSM bằng mô hình học đối kháng min-max.</span>
                         </button>
                         <button class="wf-step-btn" data-wf="5">
-                            <span class="wf-step-num">Bước 5 • Chốt chặn vật lý (M3)</span>
-                            <span class="wf-step-title">🔒 5. Kiểm Tra Thực Tế Độc Lập</span>
-                            <span class="wf-step-desc">Đối chiếu trực tiếp DB kho vật lý, chặn 100% lệnh sai &amp; điều hướng an toàn.</span>
+                            <span class="wf-step-num">Bước 5 • M3</span>
+                            <span class="wf-step-title">5. Kiểm Tra Thực Tế</span>
+                            <span class="wf-step-desc">Đối chiếu dữ liệu kho vật lý, chặn 100% vi phạm cứng.</span>
                         </button>
                     </div>
 
                     <div id="wf-active-explanation" class="wf-active-banner">
                         <div>
-                            <strong id="wf-banner-title">Đang ở Bước 3 (Sự cố bùng phát - Cấu hình M1):</strong>
-                            <span id="wf-banner-text">Mạng Dueling DQN nhận vector trạng thái đã bị tin tặc làm giả, dẫn tới chọn nhầm kho và gây thiệt hại vận hành thực tế.</span>
+                            <strong id="wf-banner-title">Bước 3 (Cấu hình M1):</strong>
+                            <span id="wf-banner-text">Mạng Dueling DQN nhận vector trạng thái bị can thiệp, dẫn tới sai lệch quyết định phân bổ kho.</span>
                         </div>
-                        <span id="wf-banner-badge" class="status-pill status-err">CHẾ ĐỘ: M1 – ĐANG BỊ TẤN CÔNG</span>
+                        <span id="wf-banner-badge" class="status-pill status-err">CHẾ ĐỘ: M1 – BỊ TẤN CÔNG</span>
                     </div>
 
-                    <!-- BẢNG THAO TÁC BƠM NHIỄU TRỰC TIẾP THEO THỜI GIAN THỰC (LIVE HACKER INJECTION CONSOLE) -->
+                    <!-- BẢNG THAO TÁC BƠM NHIỄU TRỰC TIẾP -->
                     <div id="hacker-live-console" class="hacker-live-console">
                         <div class="hacker-console-head">
-                            <strong>⚡ BẢNG THAO TÁC TẤN CÔNG TRỰC TIẾP TRÊN ĐƠN HÀNG ĐANG CHỌN (<span id="hack-target-order-label">Đơn hàng #1 - U1</span>):</strong>
-                            <span>Bấm vào bất kỳ đòn tấn công nào dưới đây để sửa gói tin và xem Điểm Q(s,a), Bản đồ &amp; KPI nhảy số ngay lập tức!</span>
+                            <strong>CAN THIỆP GÓI TIN TRỰC TIẾP (<span id="hack-target-order-label">Đơn hàng #1 - U1</span>):</strong>
                         </div>
                         <div class="hacker-actions-bar">
                             <button class="btn-hack-action" data-hack="flipOpen">
-                                🔓 1. Lật Bit Kho Đóng → Mở (O_obs = 1)
+                                1. Lật Bit Kho Đóng → Mở (O_obs = 1)
                             </button>
                             <button class="btn-hack-action" data-hack="poisonCost">
-                                💸 2. Đảo Giá Cước (Kho xa = 12 đv, Kho gần = 165 đv)
+                                2. Đảo Giá Cước (C_obs)
                             </button>
                             <button class="btn-hack-action" data-hack="spoofCap">
-                                📦 3. Bơm +180 Tấn Tồn Kho Ảo (Gây tràn kho CV)
+                                3. Bơm +180 Tấn Tồn Kho Ảo (Cap_obs)
                             </button>
                             <button class="btn-hack-action" data-hack="cutDemand">
-                                📉 4A. Cắt Giảm 60% Đơn Hàng (Giao thiếu hàng)
+                                4A. Giảm 60% Khối Lượng Đặt (D_obs)
                             </button>
                             <button class="btn-hack-action" data-hack="inflateDemand">
-                                📈 4B. Thổi Phồng 190% Đơn Hàng (Lãng phí xe)
+                                4B. Tăng 190% Khối Lượng Đặt (D_obs)
                             </button>
                             <button class="btn-hack-action" data-hack="resetLmax">
-                                🚧 5. Xóa Bộ Đếm Bến Xuất Hàng (l_obs = 0 / l_max)
+                                5. Xóa Bộ Đếm Bến Xuất Hàng (l_obs = 0)
                             </button>
                             <button id="btn-hack-clear" class="btn-hack-reset">
-                                ♻️ Khôi Phục Gói Tin Mặc Định Kịch Bản
+                                Khôi Phục Mặc Định
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Bảng điều khiển chi tiết (Tất cả phản hồi thời gian thực ngay khi kéo/chọn) -->
+                <!-- Bảng điều khiển tham số -->
                 <div class="controls-grid">
                     <div class="control-group">
-                        <label for="select-scenario">Kịch bản thuyết trình (Thành viên 1 → 9)</label>
+                        <label for="select-scenario">Kịch bản thực nghiệm (Thành viên 1 → 9)</label>
                         <select id="select-scenario" class="select-input">
                             <option value="1">Kịch bản 1 (TV 1) – Giả mạo trạng thái đóng/mở kho (Open Status Spoofing)</option>
                             <option value="2">Kịch bản 2 (TV 2) – Bóp méo ma trận chi phí vận chuyển (Transport Cost Poisoning)</option>
@@ -261,49 +256,41 @@
                     </div>
 
                     <div class="control-group">
-                        <label>Chuyển nhanh cấu hình mô hình đối chứng (M0, M1, M2, M3)</label>
+                        <label>Cấu hình mô hình đối chứng</label>
                         <div class="model-selector-group">
-                            <button class="model-radio-btn" data-model="M0" title="Mô hình Dueling DQN bình thường (Đường cơ sở)">
-                                M0: Cơ sở
-                            </button>
-                            <button class="model-radio-btn active" data-model="M1" title="Mô hình Dueling DQN khi có tác động tấn công">
-                                M1: Bị tấn công
-                            </button>
-                            <button class="model-radio-btn" data-model="M2" title="Dueling DQN + Huấn luyện đối kháng (Adversarial Training)">
-                                M2: Huấn luyện ĐK
-                            </button>
-                            <button class="model-radio-btn" data-model="M3" title="Dueling DQN + Action Masking & Kiểm tra ràng buộc bằng dữ liệu thực tế">
-                                M3: Kiểm tra thực tế
-                            </button>
+                            <button class="model-radio-btn" data-model="M0">M0: Cơ sở</button>
+                            <button class="model-radio-btn active" data-model="M1">M1: Bị tấn công</button>
+                            <button class="model-radio-btn" data-model="M2">M2: Huấn luyện ĐK</button>
+                            <button class="model-radio-btn" data-model="M3">M3: Kiểm tra thực tế</button>
                         </div>
                     </div>
 
                     <div class="control-group">
-                        <label>Kéo thanh trượt để đổi nhiễu FGSM theo thời gian thực (<span id="label-epsilon">ε = 0.15</span> • <span id="label-intensity">30%</span>)</label>
+                        <label>Tham số FGSM (<span id="label-epsilon">ε = 0.15</span> • Quy mô <span id="label-intensity">30%</span> • Seed)</label>
                         <div class="sliders-inline">
                             <div class="slider-item">
-                                <input type="range" id="input-epsilon" min="0.05" max="0.45" step="0.01" value="0.15" title="Kéo để thay đổi biên độ nhiễu đối kháng FGSM ε theo thời gian thực" />
+                                <input type="range" id="input-epsilon" min="0.05" max="0.45" step="0.01" value="0.15" />
                             </div>
                             <div class="slider-item">
-                                <input type="range" id="input-intensity" min="0.10" max="0.70" step="0.05" value="0.30" title="Kéo để thay đổi quy mô phần tử chịu tác động theo thời gian thực" />
+                                <input type="range" id="input-intensity" min="0.10" max="0.70" step="0.05" value="0.30" />
                             </div>
-                            <input type="number" id="input-seed" class="number-input" value="2026" style="width: 76px;" title="Seed cố định bộ dữ liệu chung" />
+                            <input type="number" id="input-seed" class="number-input" value="2026" style="width: 76px;" />
                         </div>
                     </div>
 
                     <div class="control-group">
                         <button id="btn-recalculate" class="btn-primary">
-                            🔄 Đặt Lại Chuẩn (ε=0.15, 30%)
+                            Đặt Lại Tham Số Chuẩn
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- HỒ SƠ NGHIỆP VỤ & GIẢI PHẪU KỊCH BẢN TẤN CÔNG (4 KHỐI RÕ RÀNG CHO THÀNH VIÊN THUYẾT TRÌNH) -->
+            <!-- HỒ SƠ NGHIỆP VỤ & GIẢI PHẪU KỊCH BẢN TẤN CÔNG -->
             <div class="storyboard-grid">
                 <div class="story-card">
                     <div class="story-card-head" style="color: #38bdf8;">
-                        <span>🏢 1. Quy Trình Kinh Doanh Thực Tế</span>
+                        <span>1. Quy Trình Kinh Doanh Thực Tế</span>
                     </div>
                     <p id="story-business-process"></p>
                     <code id="story-target-vector" class="formula-chip"></code>
@@ -311,7 +298,7 @@
 
                 <div class="story-card story-attack">
                     <div class="story-card-head" style="color: #fb923c;">
-                        <span>💀 2. Các Bước Tin Tặc Tấn Công</span>
+                        <span>2. Các Bước Tấn Công</span>
                     </div>
                     <ul id="story-attack-steps"></ul>
                     <code id="story-attack-formula" class="formula-chip"></code>
@@ -319,7 +306,7 @@
 
                 <div class="story-card story-dqn">
                     <div class="story-card-head" style="color: #f87171;">
-                        <span>🧠 3. Cách Mạng Dueling DQN Bị Lừa</span>
+                        <span>3. Cơ Chế Tác Động Lên Dueling DQN</span>
                     </div>
                     <p id="story-dqn-mechanism"></p>
                     <code id="story-dqn-formula" class="formula-chip"></code>
@@ -327,7 +314,7 @@
 
                 <div class="story-card story-defense">
                     <div class="story-card-head" style="color: #34d399;">
-                        <span>🛡️ 4. Hậu Quả &amp; Cơ Chế Phòng Thủ (M2/M3)</span>
+                        <span>4. Hậu Quả &amp; Cơ Chế Phòng Thủ (M2/M3)</span>
                     </div>
                     <p id="story-impact-defense"></p>
                     <code id="story-defense-formula" class="formula-chip"></code>
@@ -368,12 +355,11 @@
                 </div>
             </div>
 
-            <!-- BẢN ĐỒ MẠNG LƯỚI 50x50 & MÁY QUÉT GÓI TIN / ĐIỂM Q TẠI TỪNG ĐƠN HÀNG -->
+            <!-- BẢN ĐỒ MẠNG LƯỚI 50x50 & PHÂN TÍCH GÓI TIN / ĐIỂM Q -->
             <div class="visualizer-grid">
-                <!-- Cột trái: Bản đồ điều phối trực quan (Bấm trực tiếp lên điểm bất kỳ trên bản đồ để chọn!) -->
                 <div class="panel-card">
                     <div class="panel-header">
-                        <h3>Bản Đồ Điều Phối Vận Tải Thời Gian Thực (Bấm trực tiếp vào Kho hoặc Khách hàng trên bản đồ để soi!)</h3>
+                        <h3>Bản Đồ Điều Phối Vận Tải Thời Gian Thực (50 Kho × 50 Khách Hàng)</h3>
                         <span id="step-counter-badge" class="spec-badge">Đơn hàng #1 / 50</span>
                     </div>
                     <div class="canvas-wrapper">
@@ -397,73 +383,67 @@
                         </div>
                     </div>
 
-                    <!-- Thanh điều khiển từng đơn hàng U1 -> U50 -->
                     <div class="playback-bar">
-                        <button id="btn-prev-step" class="btn-secondary btn-sm" title="Lùi lại 1 đơn hàng">⏮ Đơn trước</button>
-                        <button id="btn-play-steps" class="btn-primary btn-sm">▶ Phát tự động 50 đơn hàng</button>
-                        <button id="btn-next-step" class="btn-secondary btn-sm" title="Tiến tới 1 đơn hàng">Đơn kế ⏭</button>
+                        <button id="btn-prev-step" class="btn-secondary btn-sm">Đơn trước</button>
+                        <button id="btn-play-steps" class="btn-primary btn-sm">Phát tự động 50 đơn</button>
+                        <button id="btn-next-step" class="btn-secondary btn-sm">Đơn kế</button>
                         <input type="range" id="slider-step" min="1" max="50" value="1" />
-                        <button id="btn-reset-steps" class="btn-secondary btn-sm">Xem toàn bộ 50 tuyến</button>
+                        <button id="btn-reset-steps" class="btn-secondary btn-sm">Toàn bộ 50 tuyến</button>
                     </div>
 
-                    <!-- Cảnh báo sự cố hiện trường tại đơn hàng đang chọn -->
                     <div id="live-incident-alert" class="incident-live-alert alert-danger" style="margin-top: 12px; margin-bottom: 0;"></div>
                 </div>
 
-                <!-- Cột phải: Máy quét gói tin bị tin tặc sửa đổi & Bảng so sánh Q-value Top 5 kho -->
+                <!-- Cột phải: Phân tích gói tin & Bảng so sánh Q-value -->
                 <div id="inspector-right-panel" class="panel-card">
                     <div class="panel-header">
-                        <h3>🔍 Máy Quét Gói Tin Bị Tin Tặc Can Thiệp &amp; Giải Mã Quyết Định Dueling DQN</h3>
-                        <span id="inspector-order-badge" class="status-pill status-warn">Đang soi: Đơn hàng U1</span>
+                        <h3>Phân Tích Gói Tin Trạng Thái &amp; Giá Trị Q(s, a)</h3>
+                        <span id="inspector-order-badge" class="status-pill status-warn">Đơn hàng U1</span>
                     </div>
 
-                    <!-- Đối chiếu Gói tin Thực tế tại Kho vs Gói tin Giả mạo Tin tặc bơm cho AI -->
                     <div class="packet-diff-grid">
                         <div class="packet-box packet-real">
-                            <span class="packet-box-title" style="color: #34d399;">✅ DỮ LIỆU THỰC TẾ TẠI KHO (S_REAL)</span>
+                            <span class="packet-box-title" style="color: #34d399;">DỮ LIỆU THỰC TẾ TẠI KHO (S_REAL)</span>
                             <div id="packet-real-text" style="color: #e2e8f0; font-family: Consolas, monospace;"></div>
                             <div id="packet-optimal-note" style="margin-top: 4px; color: #94a3b8; font-size: 11.5px;"></div>
                         </div>
                         <div class="packet-box packet-spoofed">
-                            <span class="packet-box-title" style="color: #f87171;">💀 GÓI TIN TIN TẶC BƠM CHO AI (S_OBS / S_ADV)</span>
+                            <span class="packet-box-title" style="color: #f87171;">GÓI TIN ĐẦU VÀO MẠNG DQN (S_OBS / S_ADV)</span>
                             <div id="packet-spoofed-text" style="color: #fca5a5; font-family: Consolas, monospace;"></div>
                             <div id="packet-tamper-summary" style="margin-top: 4px; color: #fbbf24; font-size: 11.5px;"></div>
                         </div>
                     </div>
 
-                    <!-- Bảng so sánh điểm số Q(s,a) giữa Trạng thái sạch vs Trạng thái bị tấn công trên Top 5 Kho ứng viên -->
                     <h4 style="font-size: 13px; color: #38bdf8; margin-bottom: 4px;">
-                        Bảng So Sánh Điểm Số Q(s, a) Trên 5 Kho Ứng Viên Hàng Đầu (Cập nhật trực tiếp theo từng thao tác):
+                        So Sánh Điểm Số Q(s, a) Trên 5 Kho Ứng Viên Hàng Đầu:
                     </h4>
                     <div class="table-responsive" style="margin-bottom: 14px;">
                         <table class="report-table">
                             <thead>
                                 <tr>
                                     <th>Kho ứng viên</th>
-                                    <th>Cước Thực → Giả</th>
-                                    <th>Tồn kho Thực → Giả</th>
+                                    <th>Cước Thực → Quan sát</th>
+                                    <th>Tồn kho Thực → Quan sát</th>
                                     <th>Điểm Q Sạch</th>
                                     <th>Điểm Q Hiện Tại</th>
-                                    <th>Quyết định của AI &amp; Rào chắn</th>
+                                    <th>Quyết định</th>
                                 </tr>
                             </thead>
                             <tbody id="top-candidates-q-tbody"></tbody>
                         </table>
                     </div>
 
-                    <!-- Bảng số liệu tổng kết của kịch bản đang chọn -->
                     <h4 style="font-size: 13px; margin-bottom: 4px; color: #34d399;">
-                        Bảng Tổng Kết Kịch Bản Đang Chọn (Cột đang chạy được viền xanh nổi bật • Cập nhật tức thời):
+                        Bảng Tổng Kết Kịch Bản Hiện Tại:
                     </h4>
                     <div id="live-scenario-table-container" class="table-responsive"></div>
                 </div>
             </div>
 
-            <!-- Nhật ký chi tiết 50 bước phân bổ (Bấm vào dòng bất kỳ để soi chi tiết đơn hàng đó) -->
+            <!-- Nhật ký chi tiết 50 bước phân bổ -->
             <div class="panel-card">
                 <div class="panel-header">
-                    <h3>📋 Nhật Ký Điều Phối 50 Đơn Hàng Trong Ca Vận Hành (Bấm vào bất kỳ dòng nào để soi gói tin &amp; bơm nhiễu đơn hàng đó)</h3>
-                    <span class="text-muted">Màu đỏ = Đơn hàng bị tin tặc đánh lừa gây sự cố • Màu vàng = Đã được Rào chắn M3 cứu nguy</span>
+                    <h3>Nhật Ký Điều Phối 50 Đơn Hàng Trong Ca Vận Hành</h3>
                 </div>
                 <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
                     <table class="report-table">
@@ -471,14 +451,14 @@
                             <tr>
                                 <th>Bước</th>
                                 <th>Khách hàng</th>
-                                <th>Khối lượng Thực (Giả)</th>
+                                <th>Khối lượng Thực (Quan sát)</th>
                                 <th>Kho Tối ưu (M0)</th>
                                 <th>Kho AI Đề xuất</th>
                                 <th>Kho Thực thi</th>
                                 <th>Điểm Q(s,a)</th>
-                                <th>Chi phí Thực (Giả)</th>
+                                <th>Chi phí Thực (Quan sát)</th>
                                 <th>Đứt gãy (UD)</th>
-                                <th>Trạng thái &amp; Hành vi Tin tặc</th>
+                                <th>Trạng thái</th>
                             </tr>
                         </thead>
                         <tbody id="step-log-tbody"></tbody>
@@ -487,20 +467,15 @@
             </div>
         </section>
 
-        <!-- =================================================================== -->
-        <!-- TAB 2: CHI TIẾT 9 KỊCH BẢN TẤN CÔNG (BẢNG BÁO CÁO THÀNH VIÊN 1 -> 9) -->
-        <!-- =================================================================== -->
+        <!-- TAB 3: CHI TIẾT 9 KỊCH BẢN TẤN CÔNG -->
         <section id="tab-scenarios-detail" class="tab-panel">
             <div class="panel-card" style="margin-bottom: 18px;">
                 <div class="panel-header">
                     <div>
-                        <h3>Hồ Sơ Kịch Bản Thực Chiến &amp; Bảng Kết Quả Của 9 Thành Viên (Kịch Bản 1 → Kịch Bản 9)</h3>
-                        <p class="text-muted">
-                            Mỗi thành viên có thể bấm <strong>"🎯 Mở Trình Diễn Trực Quan Kịch Bản Này"</strong> để thuyết trình trước lớp hoặc bấm <strong>"📋 Sao Chép Bảng &amp; Nhận Xét"</strong> để dán vào báo cáo Word.
-                        </p>
+                        <h3>Bảng Kết Quả Thực Nghiệm 9 Kịch Bản (Thành Viên 1 → Thành Viên 9)</h3>
                     </div>
                     <button class="btn-primary" onclick="copyFullChapter4Report()">
-                        📋 Sao Chép Toàn Bộ Số Liệu 9 Kịch Bản
+                        Sao Chép Toàn Bộ Số Liệu 9 Kịch Bản
                     </button>
                 </div>
             </div>
@@ -508,20 +483,15 @@
             <div id="all-scenarios-report-list"></div>
         </section>
 
-        <!-- =================================================================== -->
-        <!-- TAB 3: TỔNG HỢP CHƯƠNG 4 (MỤC 4.5 & 4.6 - SO SÁNH M0, M1, M2, M3)    -->
-        <!-- =================================================================== -->
+        <!-- TAB 4: TỔNG HỢP CHƯƠNG 4 (MỤC 4.5 & 4.6) -->
         <section id="tab-chapter4-summary" class="tab-panel">
             <div class="panel-card" style="margin-bottom: 18px;">
                 <div class="panel-header">
                     <div>
                         <h3>4.5. Tổng Hợp Kết Quả Mô Phỏng Trên Bộ Chỉ Số Chung (8 Chỉ Số × 4 Cấu Hình M0, M1, M2, M3)</h3>
-                        <p class="text-muted">
-                            Bảng tổng hợp phục vụ trực tiếp cho mục 4.5.1 (Cơ sở), 4.5.2 (8 kịch bản vận hành), 4.5.3 (Reward Poisoning) và 4.5.4 (Tổng hợp 9 kịch bản).
-                        </p>
                     </div>
                     <button class="btn-primary" onclick="copyFullChapter4Report()">
-                        📋 Sao Chép Báo Cáo Mục 4.5 &amp; 4.6
+                        Sao Chép Báo Cáo Mục 4.5 &amp; 4.6
                     </button>
                 </div>
 
@@ -769,24 +739,24 @@
                         <input id="server-eval-epsilon" type="number" class="number-input" min="0" max="1" step="0.01" value="0.10" />
                     </div>
                     <div class="control-group">
-                        <button id="btn-run-server-eval" class="btn-primary">▶ Thực Thi Đánh Giá Phòng Thủ</button>
+                        <button id="btn-run-server-eval" class="btn-primary">Thực Thi Đánh Giá Phòng Thủ</button>
                     </div>
                 </div>
 
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(148,163,184,0.15); align-items: center;">
-                    <strong style="color: #38bdf8;">Kiểm thử tấn công bơm gói tin rác / sai cấu trúc (Malformed State Injection):</strong>
-                    <button id="btn-test-junk-sample" class="btn-primary btn-sm">🛡️ Chạy Kiểm Thử Chặn Gói Tin Rác Mẫu</button>
-                    <a class="btn-secondary btn-sm" href="/api/demo/junk-attack" download="junk-attack.json">↓ Tải tệp junk-attack.json</a>
+                    <strong style="color: #38bdf8;">Kiểm thử gói tin sai cấu trúc (Malformed State Injection):</strong>
+                    <button id="btn-test-junk-sample" class="btn-primary btn-sm">Kiểm Thử Chặn Gói Tin Rác Mẫu</button>
+                    <a class="btn-secondary btn-sm" href="/api/demo/junk-attack" download="junk-attack.json">Tải tệp junk-attack.json</a>
                     <input id="input-junk-file" type="file" accept=".json,application/json" hidden />
-                    <button id="btn-upload-junk-file" class="btn-secondary btn-sm">⇧ Tải lên tệp JSON để kiểm duyệt</button>
+                    <button id="btn-upload-junk-file" class="btn-secondary btn-sm">Tải lên tệp JSON</button>
                 </div>
 
-                <div id="security-console-log" class="console-log-box">[HỆ THỐNG PHÒNG THỦ SOC] Sẵn sàng. Nhấn "Chạy Kiểm Thử Chặn Gói Tin Rác Mẫu" hoặc "Thực Thi Đánh Giá Phòng Thủ" để xem nhật ký kiểm duyệt.</div>
+                <div id="security-console-log" class="console-log-box">[HỆ THỐNG PHÒNG THỦ SOC] Sẵn sàng kiểm duyệt.</div>
             </div>
 
             <div class="panel-card">
                 <div class="panel-header">
-                    <h3>Bảng So Sánh Hiệu Quả 6 Lớp Phòng Thủ Hệ Thống Phân Bổ Kho Hàng (CWLP Defense Benchmark)</h3>
+                    <h3>Bảng So Sánh Hiệu Quả 6 Lớp Phòng Thủ Hệ Thống Phân Bổ Kho Hàng</h3>
                 </div>
                 <div class="table-responsive">
                     <table class="report-table">
@@ -811,18 +781,17 @@
         <!-- TAB 2: CỔNG NGHIỆP VỤ (ADMIN & KHÁCH HÀNG) + CSDL SUPABASE (7 BẢNG)   -->
         <!-- =================================================================== -->
         <section id="tab-supabase-portal" class="tab-panel">
-            <!-- BANNER TRẠNG THÁI VAI TRÒ & KẾT NỐI SUPABASE -->
             <div class="portal-role-banner" id="portal-role-banner">
                 <div>
-                    <strong id="portal-welcome-title">Xin chào Quản trị viên Nguyễn Quản Trị (Admin NOC)!</strong>
+                    <strong id="portal-welcome-title">Quản Trị Viên NOC (admin@vietlogix.vn)</strong>
                     <p id="portal-welcome-desc">
-                        Bạn đang có toàn quyền quản trị 50 Kho hàng (WMS), điều phối 50 Đơn hàng khách hàng (OMS), giám sát sự cố tấn công AI và đồng bộ trực tiếp 7 bảng dữ liệu với Supabase PostgreSQL.
+                        Quản trị 50 Kho hàng (WMS), 50 Đơn hàng (OMS) và đồng bộ 7 bảng dữ liệu với Supabase Cloud (demo-atbmtt).
                     </p>
                 </div>
                 <div class="portal-banner-actions">
-                    <button class="btn-primary btn-sm" id="btn-portal-open-login">🔐 Đổi Tài Khoản Đăng Nhập</button>
-                    <button class="btn-secondary btn-sm" id="btn-portal-logout">🚪 Đăng Xuất (Kiểm Thử Chặn 401)</button>
-                    <button class="btn-secondary btn-sm" id="btn-portal-reset-business">↺ Khôi Phục Dữ Liệu Gốc (50 Kho &amp; 50 Khách)</button>
+                    <button class="btn-primary btn-sm" id="btn-portal-open-login">Đổi Tài Khoản (9 Kịch Bản / Admin / Khách)</button>
+                    <button class="btn-secondary btn-sm" id="btn-portal-logout">Đăng Xuất</button>
+                    <button class="btn-secondary btn-sm" id="btn-portal-reset-business">Khôi Phục Dữ Liệu Gốc</button>
                 </div>
             </div>
 
@@ -830,10 +799,7 @@
             <div class="panel-card" style="margin-bottom: 18px;">
                 <div class="panel-header">
                     <div>
-                        <h3>🛡️ Hệ Thống Bảo Vệ Tuyến Đường (Supabase Auth Session &amp; Protected Routes Guard Matrix)</h3>
-                        <p class="text-muted">
-                            Kiểm soát truy cập dựa trên phiên JWT của Supabase Auth và phân quyền vai trò (RBAC). Thử chuyển sang vai trò <strong>Khách hàng</strong> hoặc bấm <strong>Đăng xuất</strong> rồi bấm vào các tuyến đường nội bộ (Tab 5, Tab 6) để xem Chốt chặn Protected Route hoạt động!
-                        </p>
+                        <h3>Phiên Xác Thực Supabase Auth &amp; Ma Trận Phân Quyền Tuyến Đường (Protected Routes)</h3>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;">
@@ -843,20 +809,18 @@
                     </div>
                 </div>
 
-                <div class="portal-info-strip" id="supabase-jwt-session-bar" style="margin-bottom: 12px;">
-                    <!-- Render động thông tin JWT token, Role, Auth UID -->
-                </div>
+                <div class="portal-info-strip" id="supabase-jwt-session-bar" style="margin-bottom: 12px;"></div>
 
                 <div class="table-responsive">
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th>Tuyến đường (URL Route)</th>
-                                <th>Tên Phân hệ / Trang chức năng</th>
-                                <th>Vai trò được phép (Allowed Roles)</th>
-                                <th>Chính sách Bảo vệ (Route Guard &amp; RLS Policy)</th>
-                                <th>Quyền của Tài khoản hiện tại</th>
-                                <th>Kiểm thử Điều hướng</th>
+                                <th>Tuyến đường (Route)</th>
+                                <th>Phân hệ chức năng</th>
+                                <th>Vai trò được phép</th>
+                                <th>Chính sách Bảo vệ (Route Guard &amp; RLS)</th>
+                                <th>Trạng thái Quyền</th>
+                                <th>Điều hướng</th>
                             </tr>
                         </thead>
                         <tbody id="protected-routes-matrix-tbody"></tbody>
@@ -866,91 +830,81 @@
 
             <!-- LƯỚI 2 CỘT: CỔNG ĐẶT HÀNG KHÁCH HÀNG (OMS) & BẢNG QUẢN TRỊ KHO ADMIN (WMS) -->
             <div class="visualizer-grid" style="margin-bottom: 18px;">
-                <!-- CỘT TRÁI: CỔNG DÀNH CHO KHÁCH HÀNG / ĐẠI LÝ ĐẶT HÀNG (CUSTOMER PORTAL) -->
                 <div class="panel-card portal-card-customer" id="portal-customer-box">
                     <div class="panel-header">
                         <div>
-                            <h3>🛒 Cổng Khách Hàng &amp; Đại Lý Đặt Hàng Trực Tuyến (OMS Portal)</h3>
-                            <p class="text-muted">Dành cho 50 Đại lý / Siêu thị / Nhà máy (U₁ → U₅₀) gửi yêu cầu đặt hàng và theo dõi kho được AI phân bổ</p>
+                            <h3>Cổng Khách Hàng Đặt Hàng Trực Tuyến (OMS Portal)</h3>
                         </div>
                         <span class="status-pill status-ok">Bảng: khach_hang &amp; don_hang_phan_bo</span>
                     </div>
 
                     <div class="portal-form-grid">
                         <div class="control-group">
-                            <label>Chọn Đại lý / Khách hàng đang giao dịch (U₁ → U₅₀)</label>
+                            <label>Chọn Đại lý / Khách hàng (U₁ → U₅₀)</label>
                             <select id="portal-select-customer" class="select-input"></select>
                         </div>
                         <div class="control-group">
-                            <label>Khối lượng hàng hóa yêu cầu đặt (D_j – Đơn vị: Tấn)</label>
+                            <label>Khối lượng đặt hàng (D_j – Tấn)</label>
                             <input type="number" id="portal-input-demand" class="number-input" min="5" max="180" value="48" />
                         </div>
                     </div>
 
-                    <div class="portal-info-strip" id="portal-customer-summary">
-                        <!-- Render động thông tin khách hàng -->
-                    </div>
+                    <div class="portal-info-strip" id="portal-customer-summary"></div>
 
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
                         <button id="btn-customer-submit-order" class="btn-primary">
-                            📦 Gửi Đơn Đặt Hàng Vào Supabase &amp; Chạy AI Phân Bổ Kho Ngay
+                            Gửi Đơn Hàng &amp; Chạy AI Phân Bổ Kho
                         </button>
                         <button id="btn-customer-view-on-map" class="btn-secondary">
-                            🗺️ Xem Tuyến Giao Hàng Của Đơn Này Trên Bản Đồ
+                            Xem Tuyến Giao Hàng Trên Bản Đồ
                         </button>
                     </div>
 
-                    <!-- PHIẾU KẾT QUẢ PHÂN BỔ ĐƠN HÀNG THỜI GIAN THỰC CHO KHÁCH HÀNG -->
-                    <div id="customer-order-ticket" class="order-ticket-card">
-                        <!-- Render động phiếu theo dõi đơn hàng -->
-                    </div>
+                    <div id="customer-order-ticket" class="order-ticket-card"></div>
                 </div>
 
                 <!-- CỘT PHẢI: BẢNG ĐIỀU HÀNH KHO VẬN DÀNH CHO ADMIN (ADMIN WMS PANEL) -->
                 <div class="panel-card portal-card-admin" id="portal-admin-box">
                     <div class="panel-header">
                         <div>
-                            <h3>👨‍💼 Bảng Quản Trị Hệ Thống Kho Phân Phối Dành Cho Admin (WMS Panel)</h3>
-                            <p class="text-muted">Cập nhật đóng/mở bảo trì kho, điều chỉnh tồn kho khả dụng (Cap_i) và giới hạn cầu cảng bốc xếp (l_max)</p>
+                            <h3>Bảng Quản Trị Hệ Thống Kho Phân Phối (WMS Panel – Admin)</h3>
                         </div>
                         <span class="status-pill status-warn" id="admin-permission-badge">Quyền: ADMIN NOC</span>
                     </div>
 
                     <div id="admin-lock-overlay" class="admin-lock-notice" style="display: none;">
-                        <span>🔒 Bạn đang đăng nhập với tư cách <strong>Khách hàng</strong>. Chỉ <strong>Quản trị viên (Admin)</strong> mới được phép đóng/mở kho hoặc sửa tồn kho vật lý.</span>
-                        <button id="btn-unlock-admin-now" class="btn-primary btn-sm">👨‍💼 Chuyển Sang Tài Khoản Admin Ngay</button>
+                        <span>Tài khoản Khách hàng không có quyền chỉnh sửa cấu hình kho vật lý.</span>
+                        <button id="btn-unlock-admin-now" class="btn-primary btn-sm">Chuyển Sang Tài Khoản Admin</button>
                     </div>
 
                     <div id="admin-controls-container">
                         <div class="portal-form-grid">
                             <div class="control-group">
-                                <label>Chọn Kho hàng cần điều chỉnh (W₁ → W₅₀)</label>
+                                <label>Chọn Kho hàng (W₁ → W₅₀)</label>
                                 <select id="portal-select-warehouse" class="select-input"></select>
                             </div>
                             <div class="control-group">
-                                <label>Trạng thái hoạt động vật lý của kho (Open Status O_i)</label>
+                                <label>Trạng thái hoạt động (Open Status O_i)</label>
                                 <select id="portal-warehouse-open" class="select-input">
-                                    <option value="1">🟢 1 – Đang mở cửa hoạt động bình thường</option>
-                                    <option value="0">🔴 0 – Đang đóng cửa bảo trì hệ thống</option>
+                                    <option value="1">1 – Đang mở cửa hoạt động</option>
+                                    <option value="0">0 – Đang đóng cửa bảo trì</option>
                                 </select>
                             </div>
                             <div class="control-group">
-                                <label>Sức chứa tồn kho khả dụng (Cap_i – Đơn vị: Tấn)</label>
+                                <label>Sức chứa khả dụng (Cap_i – Tấn)</label>
                                 <input type="number" id="portal-warehouse-cap" class="number-input" min="0" max="500" value="150" />
                             </div>
                             <div class="control-group">
-                                <label>Giới hạn số đoàn xe phục vụ tối đa (l_max – Cầu cảng)</label>
+                                <label>Giới hạn phục vụ tối đa (l_max – Xe)</label>
                                 <input type="number" id="portal-warehouse-lmax" class="number-input" min="1" max="8" value="2" />
                             </div>
                         </div>
 
-                        <div class="portal-info-strip" id="portal-warehouse-summary">
-                            <!-- Render động thông tin kho hàng -->
-                        </div>
+                        <div class="portal-info-strip" id="portal-warehouse-summary"></div>
 
                         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;">
                             <button id="btn-admin-save-warehouse" class="btn-primary">
-                                💾 Lưu Trạng Thái Kho Vào Supabase &amp; Tính Lại Phân Bổ Dueling DQN
+                                Lưu Trạng Thái Kho &amp; Tính Lại Phân Bổ
                             </button>
                         </div>
                     </div>
@@ -961,88 +915,80 @@
             <div class="panel-card" style="margin-bottom: 18px;">
                 <div class="panel-header">
                     <div>
-                        <h3>☁️ Liên Kết Cơ Sở Dữ Liệu Supabase PostgreSQL &amp; Quản Lý Schema 7 Bảng Doanh Nghiệp</h3>
-                        <p class="text-muted">
-                            Hệ thống tự động vận hành trên CSDL Bền vững Cục bộ (Local Persistent DB) và đồng bộ trực tiếp qua REST API với Supabase Cloud của bạn khi nhập Project URL &amp; Anon Key.
-                        </p>
+                        <h3>Kết Nối Cơ Sở Dữ Liệu Supabase Cloud (Project: demo-atbmtt)</h3>
                     </div>
-                    <span id="supabase-connection-badge" class="status-pill status-ok">Chế độ: CSDL Doanh Nghiệp Sẵn Sàng (7 Bảng)</span>
+                    <span id="supabase-connection-badge" class="status-pill status-ok">Đã kết nối Supabase Cloud</span>
                 </div>
 
                 <div class="supabase-config-grid">
                     <div class="control-group">
-                        <label>Supabase Project URL (Ví dụ: https://xyzcompany.supabase.co)</label>
-                        <input type="text" id="input-supabase-url" class="text-input" placeholder="https://your-project-id.supabase.co" />
+                        <label>Supabase Project URL</label>
+                        <input type="text" id="input-supabase-url" class="text-input" placeholder="https://quxsitzicqyficespalk.supabase.co" />
                     </div>
                     <div class="control-group">
-                        <label>Supabase Anon Public Key (eyJhbGciOiJIUzI1NiIsInR5cCI6...)</label>
-                        <input type="password" id="input-supabase-key" class="text-input" placeholder="Nhập Anon Key từ mục Project Settings -> API của Supabase" />
+                        <label>Supabase Anon Public Key</label>
+                        <input type="password" id="input-supabase-key" class="text-input" placeholder="Anon Public Key" />
                     </div>
                     <div class="control-group" style="justify-content: flex-end;">
                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button id="btn-save-test-supabase" class="btn-primary btn-sm">🔌 Lưu &amp; Kiểm Tra Kết Nối</button>
-                            <button id="btn-sync-all-supabase" class="btn-secondary btn-sm">☁️ Đồng Bộ 7 Bảng Lên Supabase Cloud</button>
-                            <button id="btn-toggle-sql-schema" class="btn-secondary btn-sm">📜 Xem / Sao Chép Mã SQL Tạo 7 Bảng</button>
-                            <a href="supabase_schema.sql" download="supabase_schema.sql" class="btn-secondary btn-sm">↓ Tải tệp supabase_schema.sql</a>
+                            <button id="btn-save-test-supabase" class="btn-primary btn-sm">Kiểm Tra Kết Nối</button>
+                            <button id="btn-sync-all-supabase" class="btn-secondary btn-sm">Đồng Bộ 7 Bảng Lên Supabase</button>
+                            <button id="btn-toggle-sql-schema" class="btn-secondary btn-sm">Xem Mã SQL Schema</button>
+                            <a href="supabase_schema.sql" download="supabase_schema.sql" class="btn-secondary btn-sm">Tải supabase_schema.sql</a>
                         </div>
                     </div>
                 </div>
 
                 <div id="supabase-sync-status-msg" class="analysis-callout" style="margin-top: 10px;">
-                    <strong>Trạng thái CSDL:</strong> Toàn bộ 7 bảng nghiệp vụ (<code>nguoi_dung</code>, <code>kho_hang</code>, <code>khach_hang</code>, <code>bang_gia_van_chuyen</code>, <code>don_hang_phan_bo</code>, <code>nhat_ky_tan_cong_ai</code>, <code>lich_su_kiem_nghiem</code>) đang được đồng bộ thời gian thực với bộ mô phỏng Dueling DQN.
+                    <strong>Trạng thái CSDL:</strong> Đã liên kết trực tiếp với project <code>demo-atbmtt</code> (<code>https://quxsitzicqyficespalk.supabase.co</code>).
                 </div>
 
-                <!-- KHUNG HIỂN THỊ MÃ SQL SCHEMA SUPABASE -->
                 <div id="sql-schema-collapsible" style="display: none; margin-top: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <strong style="color: #38bdf8;">Mã SQL Khởi Tạo 7 Bảng Nghiệp Vụ Trong Supabase SQL Editor (supabase_schema.sql):</strong>
-                        <button id="btn-copy-sql-schema" class="btn-primary btn-sm">📋 Sao Chép Toàn Bộ Mã SQL</button>
+                        <strong style="color: #38bdf8;">Mã SQL Khởi Tạo 7 Bảng Nghiệp Vụ (supabase_schema.sql):</strong>
+                        <button id="btn-copy-sql-schema" class="btn-primary btn-sm">Sao Chép Mã SQL</button>
                     </div>
                     <pre id="sql-schema-preview-box" class="console-log-box" style="max-height: 260px;"></pre>
                 </div>
             </div>
 
-            <!-- TRÌNH QUẢN TRỊ & KHÁM PHÁ TRỰC TIẾP 7 BẢNG DỮ LIỆU KINH DOANH SUPABASE -->
+            <!-- TRÌNH QUẢN TRỊ 7 BẢNG DỮ LIỆU KINH DOANH SUPABASE -->
             <div class="panel-card">
                 <div class="panel-header">
                     <div>
-                        <h3>🗄️ Trình Quản Trị Dữ Liệu 7 Bảng Hoạt Động Kinh Doanh Doanh Nghiệp (Supabase Table Explorer)</h3>
-                        <p class="text-muted">Bấm chọn từng bảng bên dưới để kiểm tra dữ liệu trực tiếp. Mọi thao tác đặt hàng, sửa kho hoặc bơm nhiễu tấn công đều cập nhật tức thời vào các bảng này!</p>
+                        <h3>Cơ Sở Dữ Liệu 7 Bảng Nghiệp Vụ Trên Supabase</h3>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" id="input-db-table-search" class="text-input" placeholder="🔍 Tìm nhanh trong bảng..." style="width: 220px;" />
-                        <button id="btn-export-active-table-csv" class="btn-secondary btn-sm">📥 Xuất Bảng Này Ra CSV</button>
+                        <input type="text" id="input-db-table-search" class="text-input" placeholder="Tìm kiếm trong bảng..." style="width: 220px;" />
+                        <button id="btn-export-active-table-csv" class="btn-secondary btn-sm">Xuất CSV</button>
                     </div>
                 </div>
 
-                <!-- 7 NÚT CHỌN BẢNG SUPABASE -->
                 <div class="db-table-tabs" id="db-table-tabs">
                     <button class="db-table-tab-btn active" data-db-table="don_hang_phan_bo">
-                        📦 1. don_hang_phan_bo <span class="badge-cnt" id="cnt-don_hang_phan_bo">50</span>
+                        1. don_hang_phan_bo <span class="badge-cnt" id="cnt-don_hang_phan_bo">50</span>
                     </button>
                     <button class="db-table-tab-btn" data-db-table="kho_hang">
-                        🏭 2. kho_hang <span class="badge-cnt" id="cnt-kho_hang">50</span>
+                        2. kho_hang <span class="badge-cnt" id="cnt-kho_hang">50</span>
                     </button>
                     <button class="db-table-tab-btn" data-db-table="khach_hang">
-                        🛒 3. khach_hang <span class="badge-cnt" id="cnt-khach_hang">50</span>
+                        3. khach_hang <span class="badge-cnt" id="cnt-khach_hang">50</span>
                     </button>
                     <button class="db-table-tab-btn" data-db-table="nhat_ky_tan_cong_ai">
-                        🚨 4. nhat_ky_tan_cong_ai <span class="badge-cnt" id="cnt-nhat_ky_tan_cong_ai">0</span>
+                        4. nhat_ky_tan_cong_ai <span class="badge-cnt" id="cnt-nhat_ky_tan_cong_ai">0</span>
                     </button>
                     <button class="db-table-tab-btn" data-db-table="bang_gia_van_chuyen">
-                        🚚 5. bang_gia_van_chuyen <span class="badge-cnt" id="cnt-bang_gia_van_chuyen">250</span>
+                        5. bang_gia_van_chuyen <span class="badge-cnt" id="cnt-bang_gia_van_chuyen">250</span>
                     </button>
                     <button class="db-table-tab-btn" data-db-table="lich_su_kiem_nghiem">
-                        📊 6. lich_su_kiem_nghiem <span class="badge-cnt" id="cnt-lich_su_kiem_nghiem">36</span>
+                        6. lich_su_kiem_nghiem <span class="badge-cnt" id="cnt-lich_su_kiem_nghiem">36</span>
                     </button>
                     <button class="db-table-tab-btn" data-db-table="nguoi_dung">
-                        👥 7. nguoi_dung <span class="badge-cnt" id="cnt-nguoi_dung">5</span>
+                        7. nguoi_dung <span class="badge-cnt" id="cnt-nguoi_dung">12</span>
                     </button>
                 </div>
 
-                <div id="db-active-table-desc" class="db-table-description">
-                    Bảng <strong>don_hang_phan_bo</strong>: Lưu trữ toàn bộ đơn đặt hàng của 50 khách hàng trong ca vận hành, kho do mạng Dueling DQN đề xuất, kho thực thi sau rào chắn M3, giá trị Q(s,a), chi phí vận chuyển và trạng thái giao hàng.
-                </div>
+                <div id="db-active-table-desc" class="db-table-description"></div>
 
                 <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
                     <table class="report-table" id="supabase-explorer-table">
@@ -1055,68 +1001,104 @@
     </main>
 
     <!-- =================================================================== -->
-    <!-- MODAL ĐĂNG NHẬP & ĐĂNG KÝ TÀI KHOẢN (ADMIN / KHÁCH HÀNG / RED TEAM)   -->
+    <!-- MODAL ĐĂNG NHẬP 9 TÀI KHOẢN CHO 9 KỊCH BẢN + ADMIN + KHÁCH HÀNG       -->
     <!-- =================================================================== -->
     <div id="auth-modal-backdrop" class="modal-backdrop" style="display: none;">
         <div class="modal-card">
             <div class="modal-header">
                 <div>
-                    <h3>🔐 Đăng Nhập &amp; Phân Quyền Hệ Thống Logistics VietLogix AI (Supabase Auth)</h3>
-                    <p class="text-muted">Chọn nhanh tài khoản mẫu để thuyết trình hoặc đăng nhập / đăng ký tài khoản mới lưu trực tiếp vào bảng <code>nguoi_dung</code></p>
+                    <h3>Đăng Nhập Hệ Thống (9 Tài Khoản Cho 9 Kịch Bản, Admin &amp; Khách Hàng)</h3>
                 </div>
                 <button id="btn-close-auth-modal" class="btn-modal-close">✕</button>
             </div>
 
-            <!-- ĐĂNG NHẬP NHANH 1-CLICK CHO BUỔI THUYẾT TRÌNH -->
+            <!-- 9 TÀI KHOẢN CHO 9 KỊCH BẢN (MẬT KHẨU CHUNG: 123456) -->
+            <div class="demo-accounts-box" style="margin-bottom: 12px;">
+                <strong style="display: block; margin-bottom: 8px; color: #38bdf8;">Danh sách 9 Tài khoản tương ứng 9 Kịch bản tấn công (Mật khẩu: 123456):</strong>
+                <div class="demo-accounts-grid">
+                    <button class="demo-acc-btn" data-demo-email="tv1@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 1 – Kịch bản 1</strong>
+                        <span>tv1@vietlogix.vn • Giả mạo đóng/mở kho</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv2@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 2 – Kịch bản 2</strong>
+                        <span>tv2@vietlogix.vn • Đầu độc chi phí vận tải</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv3@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 3 – Kịch bản 3</strong>
+                        <span>tv3@vietlogix.vn • Bóp méo sức chứa kho</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv4@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 4 – Kịch bản 4</strong>
+                        <span>tv4@vietlogix.vn • Làm giả nhu cầu đơn hàng</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv5@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 5 – Kịch bản 5</strong>
+                        <span>tv5@vietlogix.vn • Tấn công 5 Kho Hub</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv6@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 6 – Kịch bản 6</strong>
+                        <span>tv6@vietlogix.vn • Làm tràn giới hạn l_max</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv7@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 7 – Kịch bản 7</strong>
+                        <span>tv7@vietlogix.vn • Tấn công ngắt quãng</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv8@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 8 – Kịch bản 8</strong>
+                        <span>tv8@vietlogix.vn • Vượt lọc Action Masking</span>
+                    </button>
+                    <button class="demo-acc-btn" data-demo-email="tv9@vietlogix.vn" data-demo-pass="123456">
+                        <strong>Thành Viên 9 – Kịch bản 9</strong>
+                        <span>tv9@vietlogix.vn • Đầu độc phần thưởng</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TÀI KHOẢN QUẢN TRỊ VIÊN & KHÁCH HÀNG -->
             <div class="demo-accounts-box">
-                <strong style="display: block; margin-bottom: 8px; color: #38bdf8;">⚡ Đăng nhập nhanh 1-Click (Tài khoản mẫu phục vụ Demo cho Cô giáo &amp; Nhóm):</strong>
+                <strong style="display: block; margin-bottom: 8px; color: #34d399;">Tài khoản Quản trị viên (Admin NOC) &amp; Khách hàng / Đại lý:</strong>
                 <div class="demo-accounts-grid">
                     <button class="demo-acc-btn" data-demo-email="admin@vietlogix.vn" data-demo-pass="admin123">
-                        <strong>👨‍💼 Quản Trị Viên (Admin NOC)</strong>
-                        <span>admin@vietlogix.vn • Toàn quyền sửa Kho &amp; SOC</span>
+                        <strong>Quản Trị Viên (Admin NOC)</strong>
+                        <span>admin@vietlogix.vn (MK: admin123)</span>
                     </button>
                     <button class="demo-acc-btn" data-demo-email="khachhang.u1@vietlogix.vn" data-demo-pass="khach123">
-                        <strong>🛒 Khách Hàng Đại Lý U1</strong>
-                        <span>khachhang.u1@vietlogix.vn • Đặt đơn hàng Siêu thị U1</span>
+                        <strong>Khách Hàng Đại Lý U1</strong>
+                        <span>khachhang.u1@vietlogix.vn (MK: khach123)</span>
                     </button>
                     <button class="demo-acc-btn" data-demo-email="khachhang.u4@vietlogix.vn" data-demo-pass="khach123">
-                        <strong>🛒 Khách Hàng Đại Lý U4</strong>
-                        <span>khachhang.u4@vietlogix.vn • Đặt đơn hàng TTTM U4</span>
-                    </button>
-                    <button class="demo-acc-btn" data-demo-email="redteam@vietlogix.vn" data-demo-pass="hacker123">
-                        <strong>💀 Chuyên Gia Red Team AI</strong>
-                        <span>redteam@vietlogix.vn • Kiểm thử bơm nhiễu FGSM</span>
+                        <strong>Khách Hàng Đại Lý U4</strong>
+                        <span>khachhang.u4@vietlogix.vn (MK: khach123)</span>
                     </button>
                 </div>
             </div>
 
             <div class="visualizer-grid" style="margin-top: 14px;">
-                <!-- FORM ĐĂNG NHẬP -->
                 <div class="auth-form-box">
-                    <h4>1. Đăng Nhập Tài Khoản Hiện Có</h4>
+                    <h4>1. Đăng Nhập Bằng Email &amp; Mật Khẩu</h4>
                     <div class="control-group" style="margin-top: 8px;">
-                        <label>Email đăng nhập</label>
-                        <input type="email" id="login-email" class="text-input" value="admin@vietlogix.vn" />
+                        <label>Email</label>
+                        <input type="email" id="login-email" class="text-input" value="tv1@vietlogix.vn" />
                     </div>
                     <div class="control-group" style="margin-top: 8px;">
                         <label>Mật khẩu</label>
-                        <input type="password" id="login-password" class="text-input" value="admin123" />
+                        <input type="password" id="login-password" class="text-input" value="123456" />
                     </div>
                     <button id="btn-submit-login" class="btn-primary" style="width: 100%; margin-top: 12px;">
-                        ➔ Đăng Nhập Vào Hệ Thống
+                        Đăng Nhập
                     </button>
                 </div>
 
-                <!-- FORM ĐĂNG KÝ TÀI KHOẢN MỚI -->
                 <div class="auth-form-box">
-                    <h4>2. Đăng Ký Tài Khoản Khách Hàng / Admin Mới</h4>
+                    <h4>2. Tạo Tài Khoản Mới</h4>
                     <div class="control-group" style="margin-top: 8px;">
-                        <label>Họ và tên người dùng / Tên đơn vị</label>
-                        <input type="text" id="reg-fullname" class="text-input" placeholder="VD: Nguyễn Văn A - Đại lý U15" />
+                        <label>Họ và tên / Đơn vị</label>
+                        <input type="text" id="reg-fullname" class="text-input" placeholder="Nhập họ tên hoặc tên đại lý" />
                     </div>
                     <div class="control-group" style="margin-top: 8px;">
-                        <label>Email đăng ký</label>
-                        <input type="email" id="reg-email" class="text-input" placeholder="VD: daily.u15@vietlogix.vn" />
+                        <label>Email</label>
+                        <input type="email" id="reg-email" class="text-input" placeholder="Nhập email" />
                     </div>
                     <div class="portal-form-grid" style="margin-top: 8px;">
                         <div class="control-group">
@@ -1124,20 +1106,20 @@
                             <input type="password" id="reg-password" class="text-input" value="123456" />
                         </div>
                         <div class="control-group">
-                            <label>Vai trò hệ thống</label>
+                            <label>Vai trò</label>
                             <select id="reg-role" class="select-input">
-                                <option value="customer">🛒 Khách hàng / Đại lý</option>
-                                <option value="admin">👨‍💼 Quản trị viên (Admin)</option>
-                                <option value="redteam">💀 Chuyên gia Red Team</option>
+                                <option value="customer">Khách hàng / Đại lý</option>
+                                <option value="admin">Quản trị viên (Admin)</option>
+                                <option value="redteam">Thành viên Kịch bản</option>
                             </select>
                         </div>
                     </div>
                     <div class="control-group" style="margin-top: 8px;" id="reg-customer-link-group">
-                        <label>Liên kết với Mã Đại Lý / Khách Hàng (U₁ → U₅₀)</label>
+                        <label>Mã Đại Lý liên kết (U₁ → U₅₀)</label>
                         <select id="reg-customer-code" class="select-input"></select>
                     </div>
                     <button id="btn-submit-register" class="btn-secondary" style="width: 100%; margin-top: 12px;">
-                        ✚ Tạo Tài Khoản Mới Trong Bảng nguoi_dung
+                        Tạo Tài Khoản
                     </button>
                 </div>
             </div>

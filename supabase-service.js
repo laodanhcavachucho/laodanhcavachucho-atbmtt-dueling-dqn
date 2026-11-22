@@ -12,9 +12,9 @@
 
 const STORAGE_KEYS = {
     SUPABASE_CONFIG: 'vietlogix_supabase_config_v1',
-    CURRENT_USER: 'vietlogix_current_user_v1',
-    CUSTOM_USERS: 'vietlogix_users_table_v1',
-    AUTH_SESSION: 'vietlogix_supabase_jwt_session_v1',
+    CURRENT_USER: 'vietlogix_current_user_v2',
+    CUSTOM_USERS: 'vietlogix_users_table_v2',
+    AUTH_SESSION: 'vietlogix_supabase_jwt_session_v2',
     STRICT_ROUTE_GUARD: 'vietlogix_strict_route_guard_v1'
 };
 
@@ -24,45 +24,45 @@ const STORAGE_KEYS = {
 const PROTECTED_ROUTES_MATRIX = {
     'tab-visualizer': {
         route: '#/dashboard',
-        title: '1. Bàn Điều Hành NOC & Trình Diễn Tấn Công 9 Thành Viên',
+        title: '1. Bàn Điều Hành & Mô Phỏng 9 Kịch Bản',
         allowedRoles: ['admin', 'redteam', 'customer'],
         writeRoles: ['admin', 'redteam'],
-        policyDesc: 'Yêu cầu phiên đăng nhập hợp lệ (authenticated). Khách hàng chỉ được xem tuyến giao hàng; Admin & Red Team được phép điều khiển kịch bản.'
+        policyDesc: 'Cho phép Quản trị viên, Thành viên Kịch bản 1–9 và Khách hàng theo dõi điều phối.'
     },
     'tab-supabase-portal': {
         route: '#/portal',
-        title: '2. Cổng Nghiệp Vụ (OMS/WMS) & Cơ Sở Dữ Liệu Supabase (7 Bảng)',
+        title: '2. Nghiệp Vụ (Admin & Khách Hàng) + CSDL Supabase',
         allowedRoles: ['admin', 'customer', 'redteam'],
         writeRoles: ['admin', 'customer'],
-        policyDesc: 'Khách hàng (customer) chỉ được phép đặt đơn hàng của đại lý mình (OMS). Chỉ Quản trị viên (admin) mới có quyền chỉnh sửa kho vật lý (WMS).'
+        policyDesc: 'Khách hàng đặt đơn hàng (OMS); Quản trị viên cấu hình kho vật lý (WMS).'
     },
     'tab-scenarios-detail': {
         route: '#/scenarios',
-        title: '3. Hồ Sơ Chi Tiết & Bảng Số Liệu 9 Kịch Bản (Thành Viên 1 → 9)',
+        title: '3. Số Liệu Chi Tiết 9 Kịch Bản (TV1 → TV9)',
         allowedRoles: ['admin', 'redteam', 'customer'],
         writeRoles: ['admin'],
-        policyDesc: 'Tài liệu phân tích kỹ thuật & bảng số liệu thực nghiệm 9 kịch bản tấn công AI.'
+        policyDesc: 'Bảng số liệu thực nghiệm của 9 kịch bản tấn công AI.'
     },
     'tab-chapter4-summary': {
         route: '#/reports',
-        title: '4. Báo Cáo Tổng Hợp Chương 4 (Mục 4.5 & 4.6 – So Sánh M0..M3)',
+        title: '4. Báo Cáo Tổng Hợp Chương 4 (M0, M1, M2, M3)',
         allowedRoles: ['admin', 'redteam', 'customer'],
         writeRoles: ['admin'],
-        policyDesc: 'Báo cáo tổng hợp 8 chỉ số đánh giá (TAC, ATC, UD, CV, LV, IR, AR, RT) trên 4 mô hình.'
+        policyDesc: 'Tổng hợp 8 chỉ số đánh giá (TAC, ATC, UD, CV, LV, IR, AR, RT).'
     },
     'tab-dataset-inspector': {
         route: '#/dataset',
-        title: '5. Vector Trạng Thái Nội Bộ 2.750 Chiều (50 Kho × 50 Khách Hàng)',
+        title: '5. Vector Trạng Thái 2.750 Chiều (50 Kho × 50 Khách)',
         allowedRoles: ['admin', 'redteam'],
         writeRoles: ['admin'],
-        policyDesc: 'TUYẾN ĐƯỜNG NỘI BỘ (PROTECTED ROUTE): Chỉ dành cho Quản trị viên (Admin NOC) và Chuyên gia Kiểm thử (Red Team). Tài khoản Khách hàng (customer) bị chặn bởi Route Guard.'
+        policyDesc: 'Tuyến nội bộ: Dành cho Quản trị viên và Thành viên Kịch bản 1–9. Chặn tài khoản Khách hàng.'
     },
     'tab-security-center': {
         route: '#/soc-admin',
-        title: '6. Trung Tâm Điều Hành An Ninh SOC & Kiểm Duyệt Gói Tin Rác',
+        title: '6. Trung Tâm SOC & Phòng Thủ Đa Lớp',
         allowedRoles: ['admin'],
         writeRoles: ['admin'],
-        policyDesc: 'TUYẾN ĐƯỜNG ĐẶC QUYỀN CAO NHẤT (ADMIN-ONLY PROTECTED ROUTE): Chỉ Quản trị viên (Admin NOC) mới được phép truy cập và cấu hình tường lửa Input Sanitizer / Safety Guardrails.'
+        policyDesc: 'Tuyến đặc quyền: Chỉ Quản trị viên (Admin NOC) được phép truy cập.'
     }
 };
 
@@ -71,61 +71,157 @@ const DEFAULT_DEMO_USERS = [
         id: 'usr-admin-01',
         email: 'admin@vietlogix.vn',
         mat_khau_demo: 'admin123',
-        ho_ten: 'Nguyễn Quản Trị (Giám Đốc Điều Hành NOC)',
+        ho_ten: 'Quản Trị Viên NOC',
         vai_tro: 'admin',
+        kich_ban_phu_trach: null,
         ma_khach_hang_lien_ket: null,
-        chuc_vu: 'Quản trị viên Hệ thống & Kho vận',
-        so_dien_thoai: '0901234567',
-        trang_thai: 'Đang hoạt động',
+        chuc_vu: 'Quản trị hệ thống & Kho vận',
+        so_dien_thoai: '0901000000',
+        trang_thai: 'Hoạt động',
         created_at: '2026-11-01 08:00:00'
+    },
+    {
+        id: 'usr-tv-01',
+        email: 'tv1@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 1 (Kịch bản 1)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 1,
+        ma_khach_hang_lien_ket: 'U1',
+        chuc_vu: 'KB1: Giả mạo đóng/mở kho (WMS)',
+        so_dien_thoai: '0901000001',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 08:10:00'
+    },
+    {
+        id: 'usr-tv-02',
+        email: 'tv2@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 2 (Kịch bản 2)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 2,
+        ma_khach_hang_lien_ket: 'U2',
+        chuc_vu: 'KB2: Đầu độc bảng giá cước (TMS)',
+        so_dien_thoai: '0901000002',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 08:20:00'
+    },
+    {
+        id: 'usr-tv-03',
+        email: 'tv3@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 3 (Kịch bản 3)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 3,
+        ma_khach_hang_lien_ket: 'U3',
+        chuc_vu: 'KB3: Bóp méo sức chứa kho',
+        so_dien_thoai: '0901000003',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 08:30:00'
+    },
+    {
+        id: 'usr-tv-04',
+        email: 'tv4@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 4 (Kịch bản 4)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 4,
+        ma_khach_hang_lien_ket: 'U4',
+        chuc_vu: 'KB4: Làm giả nhu cầu khách hàng (OMS)',
+        so_dien_thoai: '0901000004',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 08:40:00'
+    },
+    {
+        id: 'usr-tv-05',
+        email: 'tv5@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 5 (Kịch bản 5)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 5,
+        ma_khach_hang_lien_ket: 'U5',
+        chuc_vu: 'KB5: Tấn công 5 Kho Hub trung tâm',
+        so_dien_thoai: '0901000005',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 08:50:00'
+    },
+    {
+        id: 'usr-tv-06',
+        email: 'tv6@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 6 (Kịch bản 6)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 6,
+        ma_khach_hang_lien_ket: 'U6',
+        chuc_vu: 'KB6: Làm tràn giới hạn phục vụ l_max',
+        so_dien_thoai: '0901000006',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 09:00:00'
+    },
+    {
+        id: 'usr-tv-07',
+        email: 'tv7@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 7 (Kịch bản 7)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 7,
+        ma_khach_hang_lien_ket: 'U31',
+        chuc_vu: 'KB7: Tấn công chớp nhoáng Bước 61-80',
+        so_dien_thoai: '0901000007',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 09:10:00'
+    },
+    {
+        id: 'usr-tv-08',
+        email: 'tv8@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 8 (Kịch bản 8)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 8,
+        ma_khach_hang_lien_ket: 'U8',
+        chuc_vu: 'KB8: Vượt lớp lọc Action Masking',
+        so_dien_thoai: '0901000008',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 09:20:00'
+    },
+    {
+        id: 'usr-tv-09',
+        email: 'tv9@vietlogix.vn',
+        mat_khau_demo: '123456',
+        ho_ten: 'Thành Viên 9 (Kịch bản 9)',
+        vai_tro: 'redteam',
+        kich_ban_phu_trach: 9,
+        ma_khach_hang_lien_ket: 'U9',
+        chuc_vu: 'KB9: Đầu độc phần thưởng huấn luyện',
+        so_dien_thoai: '0901000009',
+        trang_thai: 'Hoạt động',
+        created_at: '2026-11-01 09:30:00'
     },
     {
         id: 'usr-cust-u1',
         email: 'khachhang.u1@vietlogix.vn',
         mat_khau_demo: 'khach123',
-        ho_ten: 'Trần Đại Lý U1 (Siêu thị Bán lẻ U1)',
+        ho_ten: 'Đại Lý U1 (Siêu thị Bán lẻ U1)',
         vai_tro: 'customer',
+        kich_ban_phu_trach: null,
         ma_khach_hang_lien_ket: 'U1',
-        chuc_vu: 'Giám đốc Thu mua Đại lý U1',
+        chuc_vu: 'Khách hàng đặt hàng U1',
         so_dien_thoai: '0912345678',
-        trang_thai: 'Đang hoạt động',
+        trang_thai: 'Hoạt động',
         created_at: '2026-11-02 09:15:00'
     },
     {
         id: 'usr-cust-u4',
         email: 'khachhang.u4@vietlogix.vn',
         mat_khau_demo: 'khach123',
-        ho_ten: 'Lê Đại Lý U4 (Trung tâm Thương mại U4)',
+        ho_ten: 'Đại Lý U4 (Trung tâm Thương mại U4)',
         vai_tro: 'customer',
+        kich_ban_phu_trach: null,
         ma_khach_hang_lien_ket: 'U4',
-        chuc_vu: 'Quản lý Chuỗi cung ứng U4',
+        chuc_vu: 'Khách hàng đặt hàng U4',
         so_dien_thoai: '0987654321',
-        trang_thai: 'Đang hoạt động',
+        trang_thai: 'Hoạt động',
         created_at: '2026-11-03 10:30:00'
-    },
-    {
-        id: 'usr-cust-u12',
-        email: 'khachhang.u12@vietlogix.vn',
-        mat_khau_demo: 'khach123',
-        ho_ten: 'Hoàng Đại Lý U12 (Nhà máy Sản xuất U12)',
-        vai_tro: 'customer',
-        ma_khach_hang_lien_ket: 'U12',
-        chuc_vu: 'Trưởng phòng Vật tư U12',
-        so_dien_thoai: '0977889900',
-        trang_thai: 'Đang hoạt động',
-        created_at: '2026-11-04 14:20:00'
-    },
-    {
-        id: 'usr-redteam-01',
-        email: 'redteam@vietlogix.vn',
-        mat_khau_demo: 'hacker123',
-        ho_ten: 'Phạm Kiểm Thử (Chuyên gia Red Team AI)',
-        vai_tro: 'redteam',
-        ma_khach_hang_lien_ket: null,
-        chuc_vu: 'Kỹ sư Kiểm thử Xâm nhập AI (Pentester)',
-        so_dien_thoai: '0933445566',
-        trang_thai: 'Đang hoạt động',
-        created_at: '2026-11-05 16:00:00'
     }
 ];
 
