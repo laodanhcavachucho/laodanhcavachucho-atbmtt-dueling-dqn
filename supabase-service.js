@@ -253,13 +253,21 @@ class VietLogixSupabaseService {
     }
 
     loadConfig() {
+        const defaultCloudConfig = {
+            url: 'https://quxsitzicqyficespalk.supabase.co',
+            anonKey:
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF1eHNpdHppY3F5ZmljZXNwYWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzNDYyODYsImV4cCI6MjExMDkyMjI4Nn0.3busodS9LDHQKCx8FHJ8Nu57KG58Mm7ITRn8_NlvLqw'
+        };
         try {
             const raw = localStorage.getItem(STORAGE_KEYS.SUPABASE_CONFIG);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.url && parsed.anonKey) return parsed;
+            }
         } catch {
             // ignore
         }
-        return { url: '', anonKey: '' };
+        return defaultCloudConfig;
     }
 
     saveConfig(url, anonKey) {
@@ -825,10 +833,22 @@ class VietLogixSupabaseService {
                 await this.restRequest('nhat_ky_tan_cong_ai?on_conflict=ma_su_co', 'POST', incPayload, 'resolution=merge-duplicates');
             }
 
+            // Upsert bang_gia_van_chuyen (250 tuyến tiêu biểu)
+            if (this.tables.bang_gia_van_chuyen.length > 0) {
+                const costPayload = this.tables.bang_gia_van_chuyen.map(c => ({
+                    ma_kho: c.ma_kho,
+                    ma_khach_hang: c.ma_khach_hang,
+                    chi_phi_thuc_te: c.chi_phi_thuc_te,
+                    chi_phi_quan_sat_ai: c.chi_phi_quan_sat_ai,
+                    bi_bom_nhieu_fgsm: c.bi_bom_nhieu_fgsm === 'Bị làm giả'
+                }));
+                await this.restRequest('bang_gia_van_chuyen?on_conflict=ma_kho,ma_khach_hang', 'POST', costPayload, 'resolution=merge-duplicates');
+            }
+
             this.lastSyncTime = new Date().toLocaleTimeString('vi-VN');
             return {
                 ok: true,
-                message: `Đã đồng bộ thành công 50 Kho hàng, 50 Khách hàng, 50 Đơn phân bổ và Nhật ký sự cố lên Supabase Cloud (${this.lastSyncTime})!`
+                message: `Đã đồng bộ thành công toàn bộ 7 bảng (50 Kho hàng, 50 Khách hàng, 250 Tuyến cước, 50 Đơn phân bổ, Nhật ký sự cố & 36 Kịch bản) lên Supabase Cloud demo-atbmtt (${this.lastSyncTime})!`
             };
         } catch (err) {
             return {

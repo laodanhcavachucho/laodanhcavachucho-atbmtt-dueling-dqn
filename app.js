@@ -2554,10 +2554,20 @@ function initAuthAndSupabasePortalUI() {
         });
     }
 
-    // Khởi tạo trạng thái người dùng hiện tại
+    // Khởi tạo trạng thái người dùng hiện tại & Tự động đồng bộ với Supabase Cloud (demo-atbmtt)
     applyLoggedInUserState(supabaseService.currentUser);
     populateAdminWarehouseForm(0);
     renderProtectedRoutesMatrix();
+
+    if (supabaseService.isCloudConnected) {
+        setTimeout(async () => {
+            const res = await supabaseService.syncAllTablesToSupabase();
+            const msgBox = document.getElementById('supabase-sync-status-msg');
+            if (msgBox && res.ok) {
+                msgBox.innerHTML = `<strong>🟢 Đã liên kết trực tiếp Supabase Cloud (Project: demo-atbmtt):</strong> ${res.message}`;
+            }
+        }, 500);
+    }
 }
 
 window.navigateToProtectedTab = function (targetId) {
