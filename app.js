@@ -280,6 +280,7 @@ function initApp() {
     renderDatasetInspector();
     loadBackendSecurityMetrics();
     initStealthForensicsTab();
+    initInteractiveIOWorkbench();
 }
 
 function rebuildEngineFromControls() {
@@ -845,6 +846,7 @@ function updateStepView(stepNumber, withFlash = false) {
         triggerVisualFlash('inspector-right-panel');
     }
 
+    renderInteractiveIOWorkbench();
     drawNetworkCanvas();
 }
 
@@ -3676,3 +3678,292 @@ function renderStealthStageUI() {
             .join('');
     }
 }
+
+/* ========================================================================= */
+/* BÀN THỰC HÀNH TIÊM LỆNH TẤN CÔNG & LUỒNG DỮ LIỆU ĐẦU VÀO - ĐẦU RA (TAB 1) */
+/* ========================================================================= */
+
+let lastRenderedScenarioForTerminal = -1;
+let isTab1LogWipedByTerminal = false;
+
+function buildDefaultScenarioCommand(scenarioId, orderStep) {
+    const eps = Number(document.getElementById('input-epsilon')?.value || 0.15).toFixed(2);
+    const intensity = Number(document.getElementById('input-intensity')?.value || 0.30).toFixed(2);
+    const uCode = `U${orderStep}`;
+
+    const scripts = {
+        1: `// KỊCH BẢN 1 (TV1): GIẢ MẠO TRẠNG THÁI ĐÓNG/MỞ KHO (VECTOR OPEN STATUS [51..100])
+MITM_INTERCEPT(channel="WMS_TO_DQN_API", target_order="${uCode}");
+SET_OPEN_STATUS(closed_warehouses=["W7","W15","W23","W31","W42","W48"], O_obs=1);
+FGSM_LURE_COST(epsilon=${eps}, intensity=${intensity}, discount_factor=0.42);`,
+
+        2: `// KỊCH BẢN 2 (TV2): ĐẦU ĐỘC MA TRẬN CHI PHÍ VẬN CHUYỂN (VECTOR COST [101..2600])
+HOOK_TMS_CACHE(matrix="C_50x50", target_order="${uCode}");
+FGSM_POISON_COST(epsilon=${eps}, intensity=${intensity}, far_cost_spoof=15, near_cost_inflate=2.8);`,
+
+        3: `// KỊCH BẢN 3 (TV3): BÓP MÉO NĂNG LỰC SỨC CHỨA KHO (VECTOR CAPACITY [1..50])
+INTERCEPT_WMS_INVENTORY(low_cap_nodes=["W3","W8","W12","W18","W25","W28","W34","W38","W44","W49"]);
+INJECT_VIRTUAL_CAPACITY(add_tons=150, epsilon=${eps}, intensity=${intensity}, target_order="${uCode}");`,
+
+        4: `// KỊCH BẢN 4 (TV4): LÀM GIẢ NHU CẦU ĐƠN ĐẶT HÀNG (VECTOR DEMAND [2601..2650])
+TAMPER_OMS_ORDER_API(target_order="${uCode}", epsilon=${eps}, intensity=${intensity});
+SCALE_OBSERVED_DEMAND(even_order_factor=0.45, odd_order_factor=1.85);`,
+
+        5: `// KỊCH BẢN 5 (TV5): TẤN CÔNG PHÂN TÁN 5 KHO HUB TRUNG TÂM (W1, W10, W20, W30, W40)
+TARGET_STRATEGIC_HUBS(nodes=["W1","W10","W20","W30","W40"], target_order="${uCode}");
+SPOOF_HUB_STATE(real_cap_throttle=30, even_step_obs_cap=240, odd_step_obs_open=0, epsilon=${eps});`,
+
+        6: `// KỊCH BẢN 6 (TV6): LÀM TRÀN GIỚI HẠN PHỤC VỤ KHÁCH HÀNG (VECTOR L_MAX [2651..2700])
+HACK_GATE_QUEUE_COUNTER(target_order="${uCode}", condition="l_real >= l_max");
+RESET_OBSERVED_LOAD(l_obs=0, lure_cost_factor=0.65, epsilon=${eps}, intensity=${intensity});`,
+
+        7: `// KỊCH BẢN 7 (TV7): TẤN CÔNG NGẮT QUÃNG / CHỚP NHOÁNG (CỬA SỔ BƯỚC 61..80 / U31..U40)
+WAIT_FOR_TIME_WINDOW(active_steps="61..80", orders="U31..U40");
+TRIGGER_BURST_PERTURBATION(flip_open=1, add_virtual_cap=160, epsilon=${eps}, auto_withdraw_step=81);`,
+
+        8: `// KỊCH BẢN 8 (TV8): VƯỢT QUA LỚP LỌC HÀNH ĐỘNG (SYNCHRONIZED 3-VECTOR MASK BYPASS)
+ANALYZE_MASK_LOGIC(rule="Open_i == 1 && Cap_i >= D_j && l_i < l_max_i");
+INJECT_SYNC_BYPASS(force_O_obs=1, force_Cap_obs="D_j+120", force_l_obs=0, lure_cost=12, epsilon=${eps});`,
+
+        9: `// KỊCH BẢN 9 (TV9): ĐẦU ĐỘC HÀM PHẦN THƯỞNG KHI HUẤN LUYỆN (REPLAY BUFFER POISONING)
+COMPROMISE_REPLAY_BUFFER(pipeline="DQN_Bellman_Update", model_target="Model_B");
+INVERT_REWARD_SIGNAL(R_poisoned="+Cost * 0.09 - Bonus + Overflow_Reward(+18.0)", epsilon=${eps});`
+    };
+
+    return scripts[scenarioId] || scripts[1];
+}
+
+function initInteractiveIOWorkbench() {
+    const btnLoadClean = document.getElementById('btn-io-load-clean');
+    if (btnLoadClean) {
+        btnLoadClean.addEventListener('click', () => {
+            stopAllTimers();
+            isTab1LogWipedByTerminal = false;
+            manualOverridesState = {};
+            activateWorkflowStep(1);
+            showToast('Đã nạp Dữ liệu Đầu vào Sạch (s_real) và chạy mô hình cơ sở M0 (0 lỗi).');
+        });
+    }
+
+    const btnResetCmd = document.getElementById('btn-reset-terminal-cmd');
+    if (btnResetCmd) {
+        btnResetCmd.addEventListener('click', () => {
+            const term = document.getElementById('scenario-command-terminal');
+            if (term) {
+                term.value = buildDefaultScenarioCommand(currentScenarioId, selectedOrderStep);
+            }
+            isTab1LogWipedByTerminal = false;
+            manualOverridesState = {};
+            rebuildEngineFromControls();
+            updateCurrentSimulation(true);
+            showToast(`Đã khôi phục câu lệnh mẫu mặc định cho Kịch bản ${currentScenarioId}.`);
+        });
+    }
+
+    const btnExecAttack = document.getElementById('btn-exec-terminal-attack');
+    if (btnExecAttack) {
+        btnExecAttack.addEventListener('click', () => {
+            executeScenarioTerminalCommand(false);
+        });
+    }
+
+    const btnExecStealth = document.getElementById('btn-exec-terminal-stealth');
+    if (btnExecStealth) {
+        btnExecStealth.addEventListener('click', () => {
+            executeScenarioTerminalCommand(true);
+        });
+    }
+
+    const btnActM2 = document.getElementById('btn-io-activate-m2');
+    if (btnActM2) {
+        btnActM2.addEventListener('click', () => {
+            stopAllTimers();
+            activateWorkflowStep(4);
+            showToast('Đã bật Phòng thủ M2 (Huấn luyện Đối kháng – Adversarial Training)!');
+        });
+    }
+
+    const btnActM3 = document.getElementById('btn-io-activate-m3');
+    if (btnActM3) {
+        btnActM3.addEventListener('click', () => {
+            stopAllTimers();
+            isTab1LogWipedByTerminal = false;
+            activateWorkflowStep(5);
+            showToast('Đã bật Phòng thủ M3 (Kiểm tra Kho Vật lý Độc lập, chặn 100% lệnh lỗi & khôi phục Nhật ký)!');
+        });
+    }
+}
+
+function executeScenarioTerminalCommand(withStealthLogWipe = false) {
+    stopAllTimers();
+    const term = document.getElementById('scenario-command-terminal');
+    const cmdText = term ? term.value : '';
+
+    // Đọc các tham số người dùng vừa chỉnh sửa trong cửa sổ lệnh (epsilon=..., intensity=..., flip_open, poison_cost, virtual_cap...)
+    const epsMatch = cmdText.match(/epsilon\s*=\s*([0-9.]+)/i);
+    if (epsMatch) {
+        const parsedEps = Math.max(0.05, Math.min(0.45, Number(epsMatch[1])));
+        const epsSlider = document.getElementById('input-epsilon');
+        if (epsSlider) {
+            epsSlider.value = String(parsedEps);
+            document.getElementById('label-epsilon').textContent = `ε = ${parsedEps.toFixed(2)}`;
+        }
+    }
+
+    const intMatch = cmdText.match(/intensity\s*=\s*([0-9.]+)/i);
+    if (intMatch) {
+        const parsedInt = Math.max(0.1, Math.min(0.7, Number(intMatch[1])));
+        const intSlider = document.getElementById('input-intensity');
+        if (intSlider) {
+            intSlider.value = String(parsedInt);
+            document.getElementById('label-intensity').textContent = `${Math.round(parsedInt * 100)}%`;
+        }
+    }
+
+    const cIdx = selectedOrderStep - 1;
+    if (!manualOverridesState[cIdx]) manualOverridesState[cIdx] = {};
+
+    if (/O_obs\s*=\s*1|flip_open\s*=\s*1/i.test(cmdText) && currentScenarioId === 1) {
+        manualOverridesState[cIdx].flipOpen = true;
+    }
+    if (/far_cost_spoof|lure_cost/i.test(cmdText) && (currentScenarioId === 2 || currentScenarioId === 8)) {
+        manualOverridesState[cIdx].poisonCost = true;
+    }
+    if (/add_tons|add_virtual_cap/i.test(cmdText) && currentScenarioId === 3) {
+        manualOverridesState[cIdx].spoofCap = true;
+    }
+
+    if (withStealthLogWipe) {
+        isTab1LogWipedByTerminal = true;
+        if (term && !/WIPE_AUDIT_LOG/i.test(term.value)) {
+            term.value += `\nWIPE_AUDIT_LOG(table="nhat_ky_tan_cong_ai", spoof_status="HỢP LỆ (0 LỖI)");`;
+        }
+    } else {
+        isTab1LogWipedByTerminal = false;
+    }
+
+    currentModelMode = 'M1';
+    currentWorkflowStep = 3;
+    rebuildEngineFromControls();
+    updateCurrentSimulation(true);
+
+    if (isTab1LogWipedByTerminal && supabaseService) {
+        supabaseService.tables.nhat_ky_tan_cong_ai = [];
+        const cntEl = document.getElementById('cnt-nhat_ky_tan_cong_ai');
+        if (cntEl) cntEl.textContent = '0';
+    }
+
+    triggerVisualFlash('live-io-dqn-transform-box');
+    triggerVisualFlash('live-io-output-box');
+
+    showToast(
+        withStealthLogWipe
+            ? `Đã tiêm lệnh tấn công Kịch bản ${currentScenarioId} vào mạng Dueling DQN và xóa dấu vết bảng Nhật ký!`
+            : `Đã thực thi lệnh tiêm Kịch bản ${currentScenarioId} vào mạng Dueling DQN (Chế độ M1)!`
+    );
+}
+
+function renderInteractiveIOWorkbench() {
+    if (!engine || !allSummary || !currentSimResult) return;
+
+    const cleanBox = document.getElementById('live-io-clean-input-box');
+    const dqnBox = document.getElementById('live-io-dqn-transform-box');
+    const outBox = document.getElementById('live-io-output-box');
+    const term = document.getElementById('scenario-command-terminal');
+    const tagEl = document.getElementById('terminal-scenario-tag');
+    const outBadge = document.getElementById('output-mode-badge');
+
+    if (!cleanBox || !dqnBox || !outBox) return;
+
+    const cIdx = Math.max(0, Math.min(49, selectedOrderStep - 1));
+    const m0Res = allSummary.baselineM0;
+    const m1Res = allSummary.resultsByScenario[currentScenarioId].M1;
+    const curLog = currentSimResult.stepLogs[cIdx];
+    const m0Log = m0Res.stepLogs[cIdx];
+    const m1Log = m1Res.stepLogs[cIdx];
+
+    if (tagEl) tagEl.textContent = `Kịch bản ${currentScenarioId} • Đơn #${selectedOrderStep} (${curLog.customerCode})`;
+
+    if (outBadge) {
+        outBadge.textContent = `Đầu ra hiện tại: ${currentModelMode}`;
+        outBadge.className = `status-pill ${
+            currentModelMode === 'M0' || currentModelMode === 'M3'
+                ? 'status-ok'
+                : currentModelMode === 'M2'
+                ? 'status-warn'
+                : 'status-err'
+        }`;
+    }
+
+    // Tự động cập nhật câu lệnh mẫu khi đổi Kịch bản hoặc khi ô lệnh đang trống
+    if (term && (lastRenderedScenarioForTerminal !== currentScenarioId || !term.value.trim())) {
+        term.value = buildDefaultScenarioCommand(currentScenarioId, selectedOrderStep);
+        lastRenderedScenarioForTerminal = currentScenarioId;
+    }
+
+    // Làm cho các bước tấn công (Bước A, Bước B, Bước C) bấm vào được để nạp lệnh
+    const stepsList = document.getElementById('story-attack-steps');
+    if (stepsList && !stepsList.getAttribute('data-bound-clicks')) {
+        stepsList.setAttribute('data-bound-clicks', '1');
+    }
+    const meta = SCENARIO_METADATA[currentScenarioId];
+    if (stepsList && meta) {
+        stepsList.innerHTML = meta.attackSteps
+            .map(
+                (s, idx) =>
+                    `<li onclick="highlightStepInTerminal(${idx})" title="Bấm để nạp bước này vào Cửa sổ Tiêm Lệnh">${s} <span style="color:#fb923c;font-size:11px;font-weight:700;">[Bấm nạp lệnh]</span></li>`
+            )
+            .join('');
+    }
+
+    const exp = currentModelMode === 'M0' ? m0Log.explain : m1Log.explain;
+    const bestCleanCand = exp.topCandidates.find(c => c.isCleanBest) || exp.topCandidates[0];
+    const proposedCand = exp.topCandidates.find(c => c.isProposed) || exp.topCandidates[0];
+
+    // 1. KHỐI 1: DỮ LIỆU ĐẦU VÀO GỐC (CLEAN INPUT S_REAL)
+    cleanBox.innerHTML = `
+        <div class="io-row"><span class="io-key">Đơn hàng đang xử lý (Bước t=${curLog.step}/50):</span><span class="io-val-clean">${curLog.customerCode} – ${curLog.customerName}</span></div>
+        <div class="io-row"><span class="io-key">Chiều [1..50] Tồn kho thực Cap_real[${bestCleanCand.code}]:</span><span class="io-val-clean">${bestCleanCand.realCap} tấn (Đủ đáp ứng)</span></div>
+        <div class="io-row"><span class="io-key">Chiều [51..100] Trạng thái kho O_real:</span><span class="io-val-clean">44 kho Mở (1) • 6 kho Đóng bảo trì (0)</span></div>
+        <div class="io-row"><span class="io-key">Chiều [101..2600] Cước chuẩn C_real[${bestCleanCand.code}][${curLog.customerCode}]:</span><span class="io-val-clean">${bestCleanCand.realCost} đv tiền (Kho tối ưu: ${m0Log.finalWarehouse})</span></div>
+        <div class="io-row"><span class="io-key">Chiều [2601..2750] Nhu cầu D_real[${curLog.customerCode}] &amp; Bến l_i:</span><span class="io-val-clean">D_real = ${curLog.realDemand} tấn • l_real &lt; l_max</span></div>
+    `;
+
+    // 2. KHỐI 3: BIẾN ĐỔI ĐẦU VÀO & XỬ LÝ CỦA MẠNG DUELING DQN
+    const isCleanMode = currentModelMode === 'M0';
+    dqnBox.innerHTML = `
+        <div class="io-row"><span class="io-key">Trường Vector bị tiêm lệnh:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'Không có (Vector sạch 100%)' : m1Log.explain.tamperedField}</span></div>
+        <div class="io-row"><span class="io-key">Giá trị Đầu vào Thực (s_real) → Sau tiêm (s_adv):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? m0Log.explain.realValStr : `${m1Log.explain.realValStr}  ➔  ${m1Log.explain.spoofedValStr}`}</span></div>
+        <div class="io-row"><span class="io-key">Nhánh Giá trị Trạng thái V(s; θ):</span><span class="io-val-clean">V(s_obs) = ${curLog.vValue > 0 ? '+' : ''}${curLog.vValue}</span></div>
+        <div class="io-row"><span class="io-key">Điểm Q tại Kho chuẩn (${m0Log.finalWarehouse}):</span><span class="io-val-clean">Q_sạch = +${bestCleanCand.cleanQ.toFixed(2)}  ➔  Q_hiện_tại = ${bestCleanCand.attackQ > 0 ? '+' : ''}${bestCleanCand.attackQ.toFixed(2)}</span></div>
+        <div class="io-row"><span class="io-key">Điểm Q tại Kho AI chọn (${curLog.proposedWarehouse}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Q(${curLog.proposedWarehouse}) = ${curLog.qValue > 0 ? '+' : ''}${curLog.qValue.toFixed(2)} (argmax Q chọn ${curLog.proposedWarehouse})</span></div>
+    `;
+
+    // 3. KHỐI 4: DỮ LIỆU ĐẦU RA (OUTPUT) & KẾT QUẢ PHÒNG THỦ
+    const m = currentSimResult.metrics;
+    const b = m0Res.metrics;
+    const deltaTAC = (((m.TAC - b.TAC) / Math.max(1, b.TAC)) * 100).toFixed(1);
+    const logStatusText = isTab1LogWipedByTerminal
+        ? '<span class="io-val-attack">ĐÃ BỊ LỆNH WIPE XÓA (0 Bản ghi cảnh báo)</span>'
+        : `<span class="io-val-def">Ghi nhận ${supabaseService ? supabaseService.tables.nhat_ky_tan_cong_ai.length : 32} bản ghi sự cố</span>`;
+
+    outBox.innerHTML = `
+        <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}) – Kho đề xuất / Thực thi:</span><span class="${curLog.status === 'HỢP LỆ' ? 'io-val-def' : 'io-val-attack'}">Đề xuất: ${curLog.proposedWarehouse} ➔ Thực thi: ${curLog.finalWarehouse} (${curLog.status})</span></div>
+        <div class="io-row"><span class="io-key">Chi phí Đơn #${curLog.step} &amp; Hàng đứt gãy (UD):</span><span class="${curLog.unserved > 0 || curLog.realCost > m0Log.realCost + 8 ? 'io-val-attack' : 'io-val-def'}">Cước thực = ${curLog.realCost} đv (Chuẩn M0: ${m0Log.realCost}) • Thiếu hàng UD = ${curLog.unserved} tấn</span></div>
+        <div class="io-row"><span class="io-key">Đầu ra Toàn Ca (50 Đơn) – Tổng chi phí TAC:</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}% so với M0 = 1.550)</span></div>
+        <div class="io-row"><span class="io-key">Đầu ra Toàn Ca – Đứt gãy (UD) &amp; Vi phạm (CV / LV / IR):</span><span class="${m.UD > 0 || m.CV > 0 || m.LV > 0 ? 'io-val-attack' : 'io-val-def'}">UD = ${m.UD} tấn (DFR ${m.DFR}%) • CV = ${m.CV} • LV = ${m.LV} • IR = ${currentModelMode === 'M3' ? 0 : m.IR}%</span></div>
+        <div class="io-row"><span class="io-key">Trạng thái Bảng Nhật ký (nhat_ky_tan_cong_ai):</span>${logStatusText}</div>
+    `;
+}
+
+window.highlightStepInTerminal = function (stepIdx) {
+    const term = document.getElementById('scenario-command-terminal');
+    if (!term) return;
+    const baseCmd = buildDefaultScenarioCommand(currentScenarioId, selectedOrderStep);
+    const lines = baseCmd.split('\n');
+    const targetLineIdx = Math.min(lines.length - 1, stepIdx + 1);
+    lines[targetLineIdx] = lines[targetLineIdx] + `  /* <-- ĐANG CHỌN BƯỚC ${String.fromCharCode(65 + stepIdx)} */`;
+    term.value = lines.join('\n');
+    term.focus();
+    showToast(`Đã nạp lệnh của Bước ${String.fromCharCode(65 + stepIdx)} vào Cửa sổ Tiêm Lệnh. Bấm "Thực Thi Lệnh Tiêm" để chạy!`);
+};

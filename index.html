@@ -289,38 +289,81 @@
                 </div>
             </div>
 
-            <!-- HỒ SƠ NGHIỆP VỤ & GIẢI PHẪU KỊCH BẢN TẤN CÔNG -->
-            <div class="storyboard-grid">
-                <div class="story-card">
-                    <div class="story-card-head" style="color: #38bdf8;">
-                        <span>1. Quy Trình Kinh Doanh Thực Tế</span>
+            <!-- BÀN THỰC HÀNH 4 KHỐI: ĐẦU VÀO (INPUT) -> TIÊM LỆNH TẤN CÔNG -> XỬ LÝ DUELING DQN -> ĐẦU RA (OUTPUT) & PHÒNG THỦ -->
+            <div class="storyboard-grid io-workbench-grid">
+                <!-- KHỐI 1: QUY TRÌNH KINH DOANH & DỮ LIỆU ĐẦU VÀO GỐC (CLEAN INPUT S_REAL) -->
+                <div class="story-card io-card">
+                    <div class="story-card-head" style="color: #38bdf8; display: flex; justify-content: space-between; align-items: center;">
+                        <span>1. QUY TRÌNH KINH DOANH &amp; DỮ LIỆU ĐẦU VÀO GỐC (INPUT S_REAL)</span>
+                        <button id="btn-io-load-clean" class="btn-secondary btn-xs">Nạp Đầu Vào Sạch (M0)</button>
                     </div>
                     <p id="story-business-process"></p>
                     <code id="story-target-vector" class="formula-chip"></code>
-                </div>
-
-                <div class="story-card story-attack">
-                    <div class="story-card-head" style="color: #fb923c;">
-                        <span>2. Các Bước Tấn Công</span>
+                    <div class="io-data-panel">
+                        <div class="io-panel-title">Dữ liệu Đầu Vào Chuẩn từ Hệ thống Doanh nghiệp (Vector 2.750 chiều):</div>
+                        <div id="live-io-clean-input-box" class="io-mono-box"></div>
                     </div>
-                    <ul id="story-attack-steps"></ul>
-                    <code id="story-attack-formula" class="formula-chip"></code>
                 </div>
 
-                <div class="story-card story-dqn">
-                    <div class="story-card-head" style="color: #f87171;">
-                        <span>3. Cơ Chế Tác Động Lên Dueling DQN</span>
+                <!-- KHỐI 2: CÁC BƯỚC TẤN CÔNG & CỬA SỔ TIÊM LỆNH TRỰC TIẾP (COMMAND INJECTION TERMINAL) -->
+                <div class="story-card story-attack io-card">
+                    <div class="story-card-head" style="color: #fb923c; display: flex; justify-content: space-between; align-items: center;">
+                        <span>2. CÁC BƯỚC TẤN CÔNG &amp; CỬA SỔ TIÊM LỆNH (COMMAND INJECTION)</span>
+                        <span id="terminal-scenario-tag" class="code-pill">Kịch bản 1</span>
+                    </div>
+                    <ul id="story-attack-steps" class="interactive-steps-list"></ul>
+                    <code id="story-attack-formula" class="formula-chip"></code>
+                    <div class="io-data-panel">
+                        <div class="io-panel-title" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>Cửa sổ Tiêm Lệnh &amp; Payload Tấn Công (Có thể sửa trực tiếp tham số lệnh):</span>
+                            <button id="btn-reset-terminal-cmd" class="btn-secondary btn-xs">Khôi Phục Lệnh Mẫu</button>
+                        </div>
+                        <textarea id="scenario-command-terminal" class="command-terminal-input" rows="5" spellcheck="false"></textarea>
+                        <div class="terminal-exec-bar">
+                            <button id="btn-exec-terminal-attack" class="btn-danger-glow btn-sm">
+                                Thực Thi Lệnh Tiêm Vào Mạng DQN (Chạy M1)
+                            </button>
+                            <button id="btn-exec-terminal-stealth" class="btn-secondary btn-sm">
+                                Tiêm Lệnh + Xóa Dấu Vết Log
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KHỐI 3: BIẾN ĐỔI ĐẦU VÀO & CƠ CHẾ XỬ LÝ CỦA MẠNG DUELING DQN -->
+                <div class="story-card story-dqn io-card">
+                    <div class="story-card-head" style="color: #f87171; display: flex; justify-content: space-between; align-items: center;">
+                        <span>3. BIẾN ĐỔI VECTOR ĐẦU VÀO &amp; XỬ LÝ CỦA MẠNG DUELING DQN</span>
+                        <span id="dqn-stream-badge" class="code-pill">V(s) + A(s,a) → Q(s,a)</span>
                     </div>
                     <p id="story-dqn-mechanism"></p>
                     <code id="story-dqn-formula" class="formula-chip"></code>
+                    <div class="io-data-panel">
+                        <div class="io-panel-title">Biến đổi Vector Đầu Vào (s_real → s_adv) &amp; Điểm số 2 Nhánh Dueling DQN:</div>
+                        <div id="live-io-dqn-transform-box" class="io-mono-box"></div>
+                    </div>
                 </div>
 
-                <div class="story-card story-defense">
-                    <div class="story-card-head" style="color: #34d399;">
-                        <span>4. Hậu Quả &amp; Cơ Chế Phòng Thủ (M2/M3)</span>
+                <!-- KHỐI 4: DỮ LIỆU ĐẦU RA (OUTPUT) & CƠ CHẾ PHÒNG THỦ (M2 / M3) -->
+                <div class="story-card story-defense io-card">
+                    <div class="story-card-head" style="color: #34d399; display: flex; justify-content: space-between; align-items: center;">
+                        <span>4. DỮ LIỆU ĐẦU RA (OUTPUT) &amp; CƠ CHẾ PHÒNG THỦ (M2 / M3)</span>
+                        <span id="output-mode-badge" class="status-pill status-err">Đầu ra: M1</span>
                     </div>
                     <p id="story-impact-defense"></p>
                     <code id="story-defense-formula" class="formula-chip"></code>
+                    <div class="io-data-panel">
+                        <div class="io-panel-title">Đối chiếu Dữ liệu Đầu Ra (Quyết định Kho, Chi phí, Vi phạm &amp; Nhật ký):</div>
+                        <div id="live-io-output-box" class="io-mono-box"></div>
+                        <div class="terminal-exec-bar" style="margin-top: 8px;">
+                            <button id="btn-io-activate-m2" class="btn-secondary btn-sm">
+                                Bật Phòng Thủ M2 (Huấn Luyện ĐK)
+                            </button>
+                            <button id="btn-io-activate-m3" class="btn-primary btn-sm">
+                                Bật Phòng Thủ M3 (Kiểm Tra Thực Tế &amp; Khôi Phục Log)
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
