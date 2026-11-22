@@ -13,7 +13,57 @@
 const STORAGE_KEYS = {
     SUPABASE_CONFIG: 'vietlogix_supabase_config_v1',
     CURRENT_USER: 'vietlogix_current_user_v1',
-    CUSTOM_USERS: 'vietlogix_users_table_v1'
+    CUSTOM_USERS: 'vietlogix_users_table_v1',
+    AUTH_SESSION: 'vietlogix_supabase_jwt_session_v1',
+    STRICT_ROUTE_GUARD: 'vietlogix_strict_route_guard_v1'
+};
+
+/**
+ * MA TRẬN PHÂN QUYỀN TUYẾN ĐƯỜNG ĐƯỢC BẢO VỆ (SUPABASE PROTECTED ROUTES & RBAC GUARD)
+ */
+const PROTECTED_ROUTES_MATRIX = {
+    'tab-visualizer': {
+        route: '#/dashboard',
+        title: '1. Bàn Điều Hành NOC & Trình Diễn Tấn Công 9 Thành Viên',
+        allowedRoles: ['admin', 'redteam', 'customer'],
+        writeRoles: ['admin', 'redteam'],
+        policyDesc: 'Yêu cầu phiên đăng nhập hợp lệ (authenticated). Khách hàng chỉ được xem tuyến giao hàng; Admin & Red Team được phép điều khiển kịch bản.'
+    },
+    'tab-supabase-portal': {
+        route: '#/portal',
+        title: '2. Cổng Nghiệp Vụ (OMS/WMS) & Cơ Sở Dữ Liệu Supabase (7 Bảng)',
+        allowedRoles: ['admin', 'customer', 'redteam'],
+        writeRoles: ['admin', 'customer'],
+        policyDesc: 'Khách hàng (customer) chỉ được phép đặt đơn hàng của đại lý mình (OMS). Chỉ Quản trị viên (admin) mới có quyền chỉnh sửa kho vật lý (WMS).'
+    },
+    'tab-scenarios-detail': {
+        route: '#/scenarios',
+        title: '3. Hồ Sơ Chi Tiết & Bảng Số Liệu 9 Kịch Bản (Thành Viên 1 → 9)',
+        allowedRoles: ['admin', 'redteam', 'customer'],
+        writeRoles: ['admin'],
+        policyDesc: 'Tài liệu phân tích kỹ thuật & bảng số liệu thực nghiệm 9 kịch bản tấn công AI.'
+    },
+    'tab-chapter4-summary': {
+        route: '#/reports',
+        title: '4. Báo Cáo Tổng Hợp Chương 4 (Mục 4.5 & 4.6 – So Sánh M0..M3)',
+        allowedRoles: ['admin', 'redteam', 'customer'],
+        writeRoles: ['admin'],
+        policyDesc: 'Báo cáo tổng hợp 8 chỉ số đánh giá (TAC, ATC, UD, CV, LV, IR, AR, RT) trên 4 mô hình.'
+    },
+    'tab-dataset-inspector': {
+        route: '#/dataset',
+        title: '5. Vector Trạng Thái Nội Bộ 2.750 Chiều (50 Kho × 50 Khách Hàng)',
+        allowedRoles: ['admin', 'redteam'],
+        writeRoles: ['admin'],
+        policyDesc: 'TUYẾN ĐƯỜNG NỘI BỘ (PROTECTED ROUTE): Chỉ dành cho Quản trị viên (Admin NOC) và Chuyên gia Kiểm thử (Red Team). Tài khoản Khách hàng (customer) bị chặn bởi Route Guard.'
+    },
+    'tab-security-center': {
+        route: '#/soc-admin',
+        title: '6. Trung Tâm Điều Hành An Ninh SOC & Kiểm Duyệt Gói Tin Rác',
+        allowedRoles: ['admin'],
+        writeRoles: ['admin'],
+        policyDesc: 'TUYẾN ĐƯỜNG ĐẶC QUYỀN CAO NHẤT (ADMIN-ONLY PROTECTED ROUTE): Chỉ Quản trị viên (Admin NOC) mới được phép truy cập và cấu hình tường lửa Input Sanitizer / Safety Guardrails.'
+    }
 };
 
 const DEFAULT_DEMO_USERS = [
@@ -84,6 +134,9 @@ class VietLogixSupabaseService {
         this.config = this.loadConfig();
         this.users = this.loadUsers();
         this.currentUser = this.loadCurrentUser();
+        this.session = this.loadSession();
+        this.strictRouteGuard = this.loadStrictRouteGuard();
+        this.supabaseClient = null;
         this.tables = {
             nguoi_dung: [],
             kho_hang: [],
@@ -95,6 +148,108 @@ class VietLogixSupabaseService {
         };
         this.lastSyncTime = null;
         this.isCloudConnected = Boolean(this.config.url && this.config.anonKey);
+        this.initSupabaseJsClient();
+    }
+
+    initSupabaseJsClient() {
+        if (this.config.url && this.config.anonKey && window.supabase && typeof window.supabase.createClient === 'function') {
+            try {
+                this.supabaseClient = window.supabase.createClient(this.config.url, this.config.anonKey, {
+                    auth: {
+                        persistSession: true,
+                        autoRefreshToken: true,
+                        detectSessionInUrl: true
+                    }
+                });
+            } catch {
+                this.supabaseClient = null;
+            }
+        } else {
+            this.supabaseClient = null;
+        }
+    }
+
+    loadSession() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.AUTH_SESSION);
+            if (raw) return JSON.parse(raw);
+        } catch {
+            // ignore
+        }
+        return null;
+    }
+
+    saveSession(sessionObj) {
+        this.session = sessionObj;
+        try {
+            if (sessionObj) {
+                localStorage.setItem(STORAGE_KEYS.AUTH_SESSION, JSON.stringify(sessionObj));
+            } else {
+                localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    loadStrictRouteGuard() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEYS.STRICT_ROUTE_GUARD);
+            if (raw !== null) return JSON.parse(raw);
+        } catch {
+            // ignore
+        }
+        return true; // Mặc định bật Bảo vệ Tuyến đường theo Vai trò (RBAC Protected Routes)
+    }
+
+    setStrictRouteGuard(enabled) {
+        this.strictRouteGuard = Boolean(enabled);
+        try {
+            localStorage.setItem(STORAGE_KEYS.STRICT_ROUTE_GUARD, JSON.stringify(this.strictRouteGuard));
+        } catch {
+            // ignore
+        }
+    }
+
+    getRouteMatrix() {
+        return PROTECTED_ROUTES_MATRIX;
+    }
+
+    /**
+     * Kiểm tra quyền truy cập vào một Route / Tab theo chuẩn Protected Routes
+     */
+    checkRouteAccess(tabId) {
+        const routeMeta = PROTECTED_ROUTES_MATRIX[tabId];
+        if (!routeMeta) return { allowed: true, reason: 'Public route' };
+
+        if (!this.currentUser) {
+            return {
+                allowed: false,
+                code: 401,
+                statusText: '401 UNAUTHORIZED – YÊU CẦU ĐĂNG NHẬP SUPABASE AUTH',
+                routeMeta,
+                reason: `Tuyến đường "${routeMeta.route}" (${routeMeta.title}) được bảo vệ bởi Supabase Auth Middleware. Bạn chưa đăng nhập hoặc phiên JWT đã kết thúc.`
+            };
+        }
+
+        if (this.strictRouteGuard && !routeMeta.allowedRoles.includes(this.currentUser.vai_tro)) {
+            return {
+                allowed: false,
+                code: 403,
+                statusText: '403 FORBIDDEN – CHỐT CHẶN PHÂN QUYỀN PROTECTED ROUTE (RBAC & RLS)',
+                routeMeta,
+                currentRole: this.currentUser.vai_tro,
+                requiredRoles: routeMeta.allowedRoles,
+                reason: routeMeta.policyDesc
+            };
+        }
+
+        return {
+            allowed: true,
+            code: 200,
+            routeMeta,
+            currentRole: this.currentUser.vai_tro
+        };
     }
 
     loadConfig() {
@@ -113,6 +268,7 @@ class VietLogixSupabaseService {
             anonKey: (anonKey || '').trim()
         };
         this.isCloudConnected = Boolean(this.config.url && this.config.anonKey);
+        this.initSupabaseJsClient();
         try {
             localStorage.setItem(STORAGE_KEYS.SUPABASE_CONFIG, JSON.stringify(this.config));
         } catch {
@@ -145,6 +301,7 @@ class VietLogixSupabaseService {
     loadCurrentUser() {
         try {
             const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
+            if (raw === 'LOGGED_OUT') return null;
             if (raw) return JSON.parse(raw);
         } catch {
             // ignore
@@ -155,20 +312,77 @@ class VietLogixSupabaseService {
     setCurrentUser(user) {
         this.currentUser = user;
         try {
-            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+            if (user === null) {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, 'LOGGED_OUT');
+            } else {
+                localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+                // Tạo JWT Session mô phỏng hoặc lưu JWT từ Supabase GoTrue
+                if (!this.session || this.session.userEmail !== user.email) {
+                    this.saveSession({
+                        access_token: `sb-jwt-${user.vai_tro}-${btoa(encodeURIComponent(user.email)).slice(0, 16)}`,
+                        token_type: 'bearer',
+                        role: 'authenticated',
+                        app_metadata: { vai_tro: user.vai_tro },
+                        userEmail: user.email,
+                        issued_at: new Date().toISOString()
+                    });
+                }
+            }
         } catch {
             // ignore
         }
     }
 
     /**
-     * Đăng nhập bằng Email & Mật khẩu (Kiểm tra trên Supabase bảng nguoi_dung nếu đã kết nối, hoặc Local DB)
+     * Đăng xuất khỏi Supabase Auth (Sign Out) & Kích hoạt màn hình Chốt chặn Protected Route (#/login)
+     */
+    async logout() {
+        if (this.supabaseClient) {
+            try {
+                await this.supabaseClient.auth.signOut();
+            } catch {
+                // ignore
+            }
+        }
+        this.saveSession(null);
+        this.setCurrentUser(null);
+        return { ok: true };
+    }
+
+    /**
+     * Đăng nhập bằng Email & Mật khẩu:
+     * 1. Thử xác thực qua Supabase Auth chuẩn (supabase.auth.signInWithPassword) nếu đã cấu hình Supabase Cloud
+     * 2. Truy vấn hồ sơ phân quyền từ bảng public.nguoi_dung
+     * 3. Fallback an toàn về CSDL Doanh nghiệp Cục bộ để demo không bao giờ bị gián đoạn
      */
     async login(email, password) {
         const cleanEmail = (email || '').trim().toLowerCase();
         const cleanPass = (password || '').trim();
 
         if (this.isCloudConnected) {
+            // Bước 1: Thử đăng nhập qua Supabase GoTrue Auth (supabase.auth.signInWithPassword)
+            if (this.supabaseClient) {
+                try {
+                    const { data: authData, error: authErr } = await this.supabaseClient.auth.signInWithPassword({
+                        email: cleanEmail,
+                        password: cleanPass
+                    });
+                    if (!authErr && authData?.session) {
+                        this.saveSession({
+                            access_token: authData.session.access_token,
+                            refresh_token: authData.session.refresh_token,
+                            token_type: 'bearer',
+                            role: 'authenticated',
+                            userEmail: cleanEmail,
+                            issued_at: new Date().toISOString()
+                        });
+                    }
+                } catch {
+                    // Tiếp tục kiểm tra bảng nguoi_dung
+                }
+            }
+
+            // Bước 2: Lấy hồ sơ người dùng & vai trò từ bảng public.nguoi_dung
             try {
                 const res = await this.restRequest(
                     `nguoi_dung?email=eq.${encodeURIComponent(cleanEmail)}&select=*`,
@@ -176,9 +390,9 @@ class VietLogixSupabaseService {
                 );
                 if (Array.isArray(res) && res.length > 0) {
                     const cloudUser = res[0];
-                    if (!cleanPass || cloudUser.mat_khau_demo === cleanPass) {
+                    if (!cleanPass || cloudUser.mat_khau_demo === cleanPass || this.session?.userEmail === cleanEmail) {
                         this.setCurrentUser(cloudUser);
-                        return { ok: true, user: cloudUser, source: 'Supabase Cloud' };
+                        return { ok: true, user: cloudUser, source: 'Supabase Auth & Cloud DB' };
                     }
                 }
             } catch {
@@ -196,11 +410,11 @@ class VietLogixSupabaseService {
             };
         }
         this.setCurrentUser(found);
-        return { ok: true, user: found, source: this.isCloudConnected ? 'Supabase Cloud' : 'CSDL Doanh Nghiệp' };
+        return { ok: true, user: found, source: this.isCloudConnected ? 'Supabase Cloud' : 'Supabase Local Auth' };
     }
 
     /**
-     * Đăng ký tài khoản Khách hàng hoặc Admin mới (Lưu vào bảng nguoi_dung & Supabase)
+     * Đăng ký tài khoản Khách hàng hoặc Admin mới (Kết hợp supabase.auth.signUp & bảng public.nguoi_dung)
      */
     async registerUser({ email, password, ho_ten, vai_tro = 'customer', ma_khach_hang_lien_ket = 'U1', so_dien_thoai = '0909998888' }) {
         const cleanEmail = (email || '').trim().toLowerCase();
@@ -211,8 +425,39 @@ class VietLogixSupabaseService {
             return { ok: false, error: 'Email này đã tồn tại trong hệ thống!' };
         }
 
+        let authUserId = null;
+        if (this.isCloudConnected && this.supabaseClient) {
+            try {
+                const { data: signUpData } = await this.supabaseClient.auth.signUp({
+                    email: cleanEmail,
+                    password: password || '123456',
+                    options: {
+                        data: {
+                            ho_ten: ho_ten.trim(),
+                            ma_khach_hang_lien_ket: vai_tro === 'customer' ? ma_khach_hang_lien_ket : null
+                        }
+                    }
+                });
+                if (signUpData?.user?.id) {
+                    authUserId = signUpData.user.id;
+                }
+                if (signUpData?.session?.access_token) {
+                    this.saveSession({
+                        access_token: signUpData.session.access_token,
+                        token_type: 'bearer',
+                        role: 'authenticated',
+                        userEmail: cleanEmail,
+                        issued_at: new Date().toISOString()
+                    });
+                }
+            } catch {
+                // fallback
+            }
+        }
+
         const newUser = {
-            id: 'usr-' + Date.now(),
+            id: authUserId || 'usr-' + Date.now(),
+            auth_user_id: authUserId,
             email: cleanEmail,
             mat_khau_demo: password || '123456',
             ho_ten: ho_ten.trim(),
@@ -231,16 +476,22 @@ class VietLogixSupabaseService {
 
         if (this.isCloudConnected) {
             try {
-                await this.restRequest('nguoi_dung', 'POST', {
-                    email: newUser.email,
-                    mat_khau_demo: newUser.mat_khau_demo,
-                    ho_ten: newUser.ho_ten,
-                    vai_tro: newUser.vai_tro,
-                    ma_khach_hang_lien_ket: newUser.ma_khach_hang_lien_ket,
-                    chuc_vu: newUser.chuc_vu,
-                    so_dien_thoai: newUser.so_dien_thoai,
-                    trang_thai: newUser.trang_thai
-                });
+                await this.restRequest(
+                    'nguoi_dung?on_conflict=email',
+                    'POST',
+                    {
+                        auth_user_id: authUserId,
+                        email: newUser.email,
+                        mat_khau_demo: newUser.mat_khau_demo,
+                        ho_ten: newUser.ho_ten,
+                        vai_tro: newUser.vai_tro,
+                        ma_khach_hang_lien_ket: newUser.ma_khach_hang_lien_ket,
+                        chuc_vu: newUser.chuc_vu,
+                        so_dien_thoai: newUser.so_dien_thoai,
+                        trang_thai: newUser.trang_thai
+                    },
+                    'resolution=merge-duplicates'
+                );
             } catch {
                 // ignore cloud error on demo
             }
@@ -425,9 +676,13 @@ class VietLogixSupabaseService {
             throw new Error('Chưa cấu hình Project URL và Anon Key của Supabase.');
         }
         const url = `${this.config.url}/rest/v1/${endpoint}`;
+        const bearerToken =
+            this.session && typeof this.session.access_token === 'string' && this.session.access_token.startsWith('eyJ')
+                ? this.session.access_token
+                : this.config.anonKey;
         const headers = {
             apikey: this.config.anonKey,
-            Authorization: `Bearer ${this.config.anonKey}`,
+            Authorization: `Bearer ${bearerToken}`,
             'Content-Type': 'application/json',
             Prefer: prefer
         };

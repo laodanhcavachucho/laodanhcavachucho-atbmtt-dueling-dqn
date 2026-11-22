@@ -1,23 +1,68 @@
 -- =================================================================================
--- CƠ SỞ DỮ LIỆU SUPABASE POSTGRESQL CHO DOANH NGHIỆP LOGISTICS VIETLOGIX AI (ATBMTT)
+-- CƠ SỞ DỮ LIỆU SUPABASE POSTGRESQL & SUPABASE AUTH + RLS CHO VIETLOGIX AI (ATBMTT)
 -- Đề tài: Tấn công dựa trên công nghệ AI – Đánh lừa mạng Dueling DQN trong vận tải
 -- Hướng dẫn: Sao chép toàn bộ nội dung file này dán vào mục SQL Editor trên Supabase
---            và nhấn "Run" để khởi tạo 7 bảng nghiệp vụ và quyền truy cập (RLS).
+--            và nhấn "Run" để khởi tạo 7 bảng nghiệp vụ, Trigger Supabase Auth và RLS.
 -- =================================================================================
 
--- 1. BẢNG HỒ SƠ NGƯỜI DÙNG & PHÂN QUYỀN (ADMIN, KHÁCH HÀNG, RED TEAM)
+-- 1. BẢNG HỒ SƠ NGƯỜI DÙNG & PHÂN QUYỀN RBAC (LIÊN KẾT TRỰC TIẾP VỚI SUPABASE AUTH.USERS)
 CREATE TABLE IF NOT EXISTS public.nguoi_dung (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT UNIQUE NOT NULL,
     mat_khau_demo TEXT DEFAULT '123456',
     ho_ten TEXT NOT NULL,
-    vai_tro TEXT NOT NULL CHECK (vai_tro IN ('admin', 'customer', 'redteam')),
+    vai_tro TEXT NOT NULL DEFAULT 'customer' CHECK (vai_tro IN ('admin', 'customer', 'redteam')),
     ma_khach_hang_lien_ket TEXT, -- Ví dụ: 'U1'..'U50' cho tài khoản khách hàng
     chuc_vu TEXT,
     so_dien_thoai TEXT,
     trang_thai TEXT DEFAULT 'Đang hoạt động',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_nguoi_dung_auth_user_id ON public.nguoi_dung(auth_user_id);
+CREATE INDEX IF NOT EXISTS idx_nguoi_dung_email ON public.nguoi_dung(email);
+
+-- TRIGGER TỰ ĐỘNG ĐỒNG BỘ TÀI KHOẢN TỪ SUPABASE AUTH (auth.users) SANG BẢNG public.nguoi_dung
+-- Lưu ý Bảo mật Supabase: Không bao giờ cho phép người dùng tự gán quyền 'admin' qua raw_user_meta_data.
+-- Mọi tài khoản tự đăng ký mới mặc định nhận vai_tro = 'customer' trừ khi được Admin cấp quyền trong DB.
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    INSERT INTO public.nguoi_dung (
+        auth_user_id,
+        email,
+        ho_ten,
+        vai_tro,
+        ma_khach_hang_lien_ket,
+        chuc_vu,
+        trang_thai
+    )
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'ho_ten', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_app_meta_data->>'vai_tro', 'customer'),
+        COALESCE(NEW.raw_user_meta_data->>'ma_khach_hang_lien_ket', 'U1'),
+        'Khách hàng / Đại lý Đăng ký qua Supabase Auth',
+        'Đang hoạt động'
+    )
+    ON CONFLICT (email) DO UPDATE
+    SET auth_user_id = EXCLUDED.auth_user_id;
+    RETURN NEW;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.handle_new_auth_user() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
 
 -- 2. BẢNG QUẢN LÝ 50 KHO HÀNG PHÂN PHỐI (W1 -> W50)
 CREATE TABLE IF NOT EXISTS public.kho_hang (
@@ -84,8 +129,12 @@ CREATE TABLE IF NOT EXISTS public.don_hang_phan_bo (
     kich_ban_so INTEGER NOT NULL,
     trang_thai_kiem_tra TEXT NOT NULL,
     nguoi_tao TEXT DEFAULT 'Hệ thống AI',
+    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_don_hang_ma_khach_hang ON public.don_hang_phan_bo(ma_khach_hang);
+CREATE INDEX IF NOT EXISTS idx_don_hang_auth_user_id ON public.don_hang_phan_bo(auth_user_id);
 
 -- 6. BẢNG NHẬT KÝ SỰ CỐ AN NINH AI & GÓI TIN BỊ TIN TẶC CAN THIỆP (SOC LOGS)
 CREATE TABLE IF NOT EXISTS public.nhat_ky_tan_cong_ai (
@@ -124,7 +173,12 @@ CREATE TABLE IF NOT EXISTS public.lich_su_kiem_nghiem (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- BẬT ROW LEVEL SECURITY (RLS) VÀ CHO PHÉP ĐỌC/GHI DEMO CÔNG KHAI QUA ANON KEY
+-- CẤP QUYỀN TRUY CẬP DATA API (POSTGREST) CHO VAI TRÒ ANON & AUTHENTICATED
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- BẬT ROW LEVEL SECURITY (RLS) TRÊN TẤT CẢ 7 BẢNG TRONG SCHEMA PUBLIC
 ALTER TABLE public.nguoi_dung ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kho_hang ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.khach_hang ENABLE ROW LEVEL SECURITY;
@@ -133,26 +187,62 @@ ALTER TABLE public.don_hang_phan_bo ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nhat_ky_tan_cong_ai ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lich_su_kiem_nghiem ENABLE ROW LEVEL SECURITY;
 
+-- CHÍNH SÁCH RLS CHUẨN SUPABASE (DÙNG MỆNH ĐỀ TO authenticated, anon VÀ SCALAR SUBQUERY (select auth.uid()))
 DROP POLICY IF EXISTS "Cho phep truy cap demo nguoi_dung" ON public.nguoi_dung;
-CREATE POLICY "Cho phep truy cap demo nguoi_dung" ON public.nguoi_dung FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo nguoi_dung"
+    ON public.nguoi_dung
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phep truy cap demo kho_hang" ON public.kho_hang;
-CREATE POLICY "Cho phep truy cap demo kho_hang" ON public.kho_hang FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo kho_hang"
+    ON public.kho_hang
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phep truy cap demo khach_hang" ON public.khach_hang;
-CREATE POLICY "Cho phep truy cap demo khach_hang" ON public.khach_hang FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo khach_hang"
+    ON public.khach_hang
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phep truy cap demo bang_gia_van_chuyen" ON public.bang_gia_van_chuyen;
-CREATE POLICY "Cho phep truy cap demo bang_gia_van_chuyen" ON public.bang_gia_van_chuyen FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo bang_gia_van_chuyen"
+    ON public.bang_gia_van_chuyen
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phep truy cap demo don_hang_phan_bo" ON public.don_hang_phan_bo;
-CREATE POLICY "Cho phep truy cap demo don_hang_phan_bo" ON public.don_hang_phan_bo FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo don_hang_phan_bo"
+    ON public.don_hang_phan_bo
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phep truy cap demo nhat_ky_tan_cong_ai" ON public.nhat_ky_tan_cong_ai;
-CREATE POLICY "Cho phep truy cap demo nhat_ky_tan_cong_ai" ON public.nhat_ky_tan_cong_ai FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo nhat_ky_tan_cong_ai"
+    ON public.nhat_ky_tan_cong_ai
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Cho phep truy cap demo lich_su_kiem_nghiem" ON public.lich_su_kiem_nghiem;
-CREATE POLICY "Cho phep truy cap demo lich_su_kiem_nghiem" ON public.lich_su_kiem_nghiem FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Cho phep truy cap demo lich_su_kiem_nghiem"
+    ON public.lich_su_kiem_nghiem
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
 
 -- DỮ LIỆU TÀI KHOẢN MẪU BAN ĐẦU
 INSERT INTO public.nguoi_dung (email, mat_khau_demo, ho_ten, vai_tro, ma_khach_hang_lien_ket, chuc_vu, so_dien_thoai)

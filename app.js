@@ -307,19 +307,11 @@ function triggerVisualFlash(elementId) {
 }
 
 function bindEvents() {
-    // Chuyển tab chính
+    // Chuyển tab chính qua Bộ Kiểm Soát Tuyến Đường Được Bảo Vệ (Supabase Protected Routes Guard)
     document.querySelectorAll('.nav-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.nav-tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            btn.classList.add('active');
             const targetId = btn.getAttribute('data-tab');
-            document.getElementById(targetId).classList.add('active');
-            if (targetId === 'tab-visualizer') {
-                drawNetworkCanvas();
-            } else if (targetId === 'tab-chapter4-summary') {
-                renderComparisonBarChart();
-            }
+            navigateToProtectedTab(targetId);
         });
     });
 
@@ -2508,10 +2500,122 @@ function initAuthAndSupabasePortalUI() {
         });
     }
 
+    // Nút Đăng xuất (Sign Out) để kiểm thử Chốt chặn 401 Protected Route
+    const btnLogoutTop = document.getElementById('btn-logout-user');
+    const btnLogoutPortal = document.getElementById('btn-portal-logout');
+    [btnLogoutTop, btnLogoutPortal].forEach(el => {
+        if (el) {
+            el.addEventListener('click', async () => {
+                await supabaseService.logout();
+                applyLoggedInUserState(null);
+                const activeBtn = document.querySelector('.nav-tab-btn.active');
+                const currentTabId = activeBtn ? activeBtn.getAttribute('data-tab') : 'tab-visualizer';
+                navigateToProtectedTab(currentTabId);
+                showToast('Đã đăng xuất khỏi Supabase Auth! Mọi tuyến đường hiện bị khóa bởi Chốt chặn 401 Protected Route.');
+            });
+        }
+    });
+
+    // Các nút trên màn hình Chốt chặn Protected Route Guard (401 / 403)
+    const btnGuardAdmin = document.getElementById('btn-guard-login-admin');
+    if (btnGuardAdmin) {
+        btnGuardAdmin.addEventListener('click', () => {
+            switchRoleOneClick('admin');
+        });
+    }
+    const btnGuardOpenModal = document.getElementById('btn-guard-open-login-modal');
+    if (btnGuardOpenModal) {
+        btnGuardOpenModal.addEventListener('click', () => {
+            if (authBackdrop) authBackdrop.style.display = 'flex';
+        });
+    }
+    const btnGuardBackSafe = document.getElementById('btn-guard-back-safe-route');
+    if (btnGuardBackSafe) {
+        btnGuardBackSafe.addEventListener('click', () => {
+            if (!supabaseService.currentUser) {
+                switchRoleOneClick('customer');
+            }
+            navigateToProtectedTab('tab-supabase-portal');
+        });
+    }
+
+    // Checkbox Bật/Tắt Strict RBAC Protected Route Guard
+    const toggleStrictGuard = document.getElementById('toggle-strict-route-guard');
+    if (toggleStrictGuard) {
+        toggleStrictGuard.checked = supabaseService.strictRouteGuard;
+        toggleStrictGuard.addEventListener('change', e => {
+            supabaseService.setStrictRouteGuard(e.target.checked);
+            renderProtectedRoutesMatrix();
+            showToast(
+                e.target.checked
+                    ? 'Đã BẬT Chốt chặn Phân quyền Tuyến đường (Strict Protected Routes Guard)!'
+                    : 'Đã TẮT khóa phân quyền: Cho phép mọi vai trò xem thử tất cả các tab.'
+            );
+        });
+    }
+
     // Khởi tạo trạng thái người dùng hiện tại
     applyLoggedInUserState(supabaseService.currentUser);
     populateAdminWarehouseForm(0);
+    renderProtectedRoutesMatrix();
 }
+
+window.navigateToProtectedTab = function (targetId) {
+    document.querySelectorAll('.nav-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === targetId);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+    const guardScreen = document.getElementById('protected-route-guard-screen');
+    const check = supabaseService ? supabaseService.checkRouteAccess(targetId) : { allowed: true };
+
+    const routePath = check.routeMeta ? check.routeMeta.route : '#/dashboard';
+    try {
+        window.history.replaceState(null, '', check.allowed ? routePath : '#/login?redirect=' + encodeURIComponent(routePath));
+    } catch {
+        // ignore
+    }
+
+    const topLabel = document.getElementById('sb-status-label');
+    if (topLabel) {
+        topLabel.textContent = check.allowed
+            ? `🛡️ Route: ${routePath} (200 OK)`
+            : `🔒 Route: ${routePath} (${check.code} Chặn)`;
+    }
+
+    if (!check.allowed) {
+        if (guardScreen) {
+            guardScreen.style.display = 'block';
+            document.getElementById('guard-status-badge').textContent = `🛡️ ${check.statusText}`;
+            document.getElementById('guard-route-path').textContent = `Tuyến đường yêu cầu: ${routePath}`;
+            document.getElementById('guard-title').textContent =
+                check.code === 401
+                    ? `Chốt Chặn 401 Unauthorized: Tuyến Đường "${check.routeMeta.title}" Yêu Cầu Đăng Nhập`
+                    : `Chốt Chặn 403 Forbidden: Tài Khoản Không Đủ Quyền Truy Cập "${check.routeMeta.title}"`;
+            document.getElementById('guard-description').textContent = check.reason;
+
+            const u = supabaseService.currentUser;
+            document.getElementById('guard-current-user').textContent = u
+                ? `${u.ho_ten} (Vai trò JWT: ${u.vai_tro.toUpperCase()})`
+                : 'Chưa đăng nhập (Anonymous / Signed Out)';
+            document.getElementById('guard-allowed-roles').textContent = check.routeMeta.allowedRoles
+                .map(r => r.toUpperCase())
+                .join(', ');
+        }
+        showToast(`Chốt chặn Protected Route (${check.code}): Tuyến đường ${routePath} yêu cầu quyền phù hợp!`);
+        return;
+    }
+
+    if (guardScreen) guardScreen.style.display = 'none';
+    const panel = document.getElementById(targetId);
+    if (panel) panel.classList.add('active');
+
+    if (targetId === 'tab-visualizer') {
+        drawNetworkCanvas();
+    } else if (targetId === 'tab-chapter4-summary') {
+        renderComparisonBarChart();
+    }
+};
 
 async function handleLoginSubmit(email, pass) {
     const res = await supabaseService.login(email, pass);
@@ -2523,6 +2627,9 @@ async function handleLoginSubmit(email, pass) {
     if (authBackdrop) authBackdrop.style.display = 'none';
     applyLoggedInUserState(res.user);
     syncAndRenderSupabasePortal();
+    const activeBtn = document.querySelector('.nav-tab-btn.active');
+    const currentTabId = activeBtn ? activeBtn.getAttribute('data-tab') : 'tab-visualizer';
+    navigateToProtectedTab(currentTabId);
     showToast(`Đăng nhập thành công: ${res.user.ho_ten} (${res.source})!`);
 }
 
@@ -2540,25 +2647,39 @@ function switchRoleOneClick(role) {
     applyLoggedInUserState(user);
     syncAndRenderSupabasePortal();
 
+    const activeBtn = document.querySelector('.nav-tab-btn.active');
+    const currentTabId = activeBtn ? activeBtn.getAttribute('data-tab') : 'tab-visualizer';
+
     if (role === 'customer') {
-        const navBtn = document.getElementById('nav-btn-supabase-portal');
-        if (navBtn) navBtn.click();
-        showToast(`Đã chuyển sang giao diện Khách hàng: ${user.ho_ten}. Bạn có thể đặt đơn hàng mới ngay!`);
+        // Nếu đang ở Tab 5 hoặc Tab 6 (Tuyến đường cấm khách hàng) thì giữ nguyên để trình diễn màn hình Chốt chặn 403 Forbidden, ngược lại mở Cổng Khách hàng
+        if (currentTabId === 'tab-dataset-inspector' || currentTabId === 'tab-security-center') {
+            navigateToProtectedTab(currentTabId);
+        } else {
+            navigateToProtectedTab('tab-supabase-portal');
+        }
+        showToast(`Đã chuyển sang tài khoản Khách hàng: ${user.ho_ten}. Các tuyến nội bộ (#/dataset, #/soc-admin) hiện được khóa bảo vệ (403)!`);
     } else if (role === 'admin') {
-        showToast(`Đã chuyển sang quyền Quản trị viên: ${user.ho_ten} (Toàn quyền quản lý 50 Kho & SOC)!`);
+        navigateToProtectedTab(currentTabId);
+        showToast(`Đã chuyển sang quyền Quản trị viên: ${user.ho_ten} (Mở khóa toàn bộ 6 Protected Routes)!`);
     } else {
-        const tab1Btn = document.querySelector('.nav-tab-btn[data-tab="tab-visualizer"]');
-        if (tab1Btn) tab1Btn.click();
+        navigateToProtectedTab(currentTabId === 'tab-security-center' ? 'tab-security-center' : 'tab-visualizer');
         showToast(`Đã chuyển sang chế độ Red Team: ${user.ho_ten} (Kiểm thử bơm nhiễu đối kháng FGSM)!`);
     }
 }
 
 function applyLoggedInUserState(user) {
-    if (!user) return;
-
     const nameEl = document.getElementById('current-user-name');
     const roleEl = document.getElementById('current-user-role-label');
     const dotEl = document.getElementById('current-user-dot');
+
+    if (!user) {
+        if (nameEl) nameEl.textContent = 'Chưa đăng nhập (Khách vãng lai)';
+        if (roleEl) roleEl.textContent = 'TRẠNG THÁI: ĐÃ ĐĂNG XUẤT (401 LOCKED)';
+        if (dotEl) dotEl.className = 'role-dot role-redteam';
+        document.querySelectorAll('.btn-role-switch').forEach(btn => btn.classList.remove('active'));
+        renderProtectedRoutesMatrix();
+        return;
+    }
 
     const roleMap = {
         admin: { label: 'VAI TRÒ: QUẢN TRỊ VIÊN (ADMIN NOC)', dotClass: 'role-dot role-admin' },
@@ -2785,6 +2906,64 @@ function syncAndRenderSupabasePortal() {
     }
 
     renderActiveSupabaseTable();
+    renderProtectedRoutesMatrix();
+}
+
+function renderProtectedRoutesMatrix() {
+    if (!supabaseService) return;
+    const jwtBar = document.getElementById('supabase-jwt-session-bar');
+    const tbody = document.getElementById('protected-routes-matrix-tbody');
+    const u = supabaseService.currentUser;
+    const sess = supabaseService.session;
+
+    if (jwtBar) {
+        if (!u) {
+            jwtBar.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <span>🔴 <strong>Phiên Supabase Auth:</strong> ĐÃ ĐĂNG XUẤT (Không có JWT Access Token)</span>
+                    <span class="status-pill status-err">Mọi Protected Routes đều trả về 401 Unauthorized</span>
+                </div>
+            `;
+        } else {
+            const tokenPreview = sess && sess.access_token ? `${sess.access_token.slice(0, 28)}...` : 'sb-jwt-authenticated...';
+            jwtBar.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                    <span>🟢 <strong>Phiên Supabase Auth đang hoạt động:</strong> <code>${u.email}</code></span>
+                    <span>Claim <code>app_metadata.vai_tro</code>: <strong>${u.vai_tro.toUpperCase()}</strong></span>
+                    <span>Bearer JWT: <code>${tokenPreview}</code></span>
+                    <span>Postgres Role: <code>authenticated</code></span>
+                </div>
+            `;
+        }
+    }
+
+    if (!tbody) return;
+    const matrix = supabaseService.getRouteMatrix();
+    tbody.innerHTML = Object.entries(matrix)
+        .map(([tabId, meta]) => {
+            const check = supabaseService.checkRouteAccess(tabId);
+            const rolesBadges = meta.allowedRoles
+                .map(r => `<span class="code-pill" style="margin-right:4px;">${r.toUpperCase()}</span>`)
+                .join('');
+            const statusHtml = check.allowed
+                ? '<span class="status-pill status-ok">✓ 200 OK – Được phép truy cập</span>'
+                : `<span class="status-pill status-err">🔒 ${check.code} – Bị chặn bởi Route Guard</span>`;
+            return `
+                <tr>
+                    <td><code><strong>${meta.route}</strong></code></td>
+                    <td><strong>${meta.title}</strong></td>
+                    <td>${rolesBadges}</td>
+                    <td>${meta.policyDesc}</td>
+                    <td>${statusHtml}</td>
+                    <td>
+                        <button class="btn-secondary btn-sm" onclick="window.navigateToProtectedTab('${tabId}')">
+                            ➔ Kiểm thử mở ${meta.route}
+                        </button>
+                    </td>
+                </tr>
+            `;
+        })
+        .join('');
 }
 
 function renderActiveSupabaseTable() {

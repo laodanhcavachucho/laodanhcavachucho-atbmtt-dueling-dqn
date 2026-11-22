@@ -37,37 +37,83 @@
                 <button id="btn-open-auth-modal" class="btn-auth-login">
                     🔐 Đăng Nhập / Đăng Ký
                 </button>
+                <button id="btn-logout-user" class="btn-auth-logout" title="Đăng xuất khỏi phiên hiện tại để kiểm thử Màn hình Chốt chặn 401 Protected Route">
+                    🚪 Đăng Xuất
+                </button>
                 <button id="btn-open-supabase-tab" class="btn-supabase-status">
                     <span class="sb-dot" id="sb-status-dot"></span>
-                    <span id="sb-status-label">🗄️ Supabase DB (7 Bảng)</span>
+                    <span id="sb-status-label">🛡️ Route: #/dashboard</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- THANH ĐIỀU HƯỚNG 6 PHÂN HỆ (100% TIẾNG VIỆT) -->
+    <!-- THANH ĐIỀU HƯỚNG 6 TUYẾN ĐƯỜNG ĐƯỢC BẢO VỆ (SUPABASE PROTECTED ROUTES) -->
     <nav class="nav-tabs-bar">
-        <button class="nav-tab-btn active" data-tab="tab-visualizer">
+        <button class="nav-tab-btn active" data-tab="tab-visualizer" data-route="#/dashboard">
             1. Bàn Điều Hành &amp; Trình Diễn Tấn Công Từng Bước (Demo 9 Thành Viên)
         </button>
-        <button class="nav-tab-btn" data-tab="tab-supabase-portal" id="nav-btn-supabase-portal">
-            2. Cổng Nghiệp Vụ (Admin &amp; Khách Hàng) + CSDL Supabase (7 Bảng)
+        <button class="nav-tab-btn" data-tab="tab-supabase-portal" data-route="#/portal" id="nav-btn-supabase-portal">
+            2. Cổng Nghiệp Vụ (Admin &amp; Khách Hàng) + Supabase Auth &amp; 7 Bảng
         </button>
-        <button class="nav-tab-btn" data-tab="tab-scenarios-detail">
+        <button class="nav-tab-btn" data-tab="tab-scenarios-detail" data-route="#/scenarios">
             3. Hồ Sơ Chi Tiết &amp; Bảng Số Liệu 9 Kịch Bản (Thành Viên 1 → 9)
         </button>
-        <button class="nav-tab-btn" data-tab="tab-chapter4-summary">
+        <button class="nav-tab-btn" data-tab="tab-chapter4-summary" data-route="#/reports">
             4. Báo Cáo Tổng Hợp Chương 4 (Mục 4.5 &amp; 4.6 – So Sánh M0, M1, M2, M3)
         </button>
-        <button class="nav-tab-btn" data-tab="tab-dataset-inspector">
-            5. Vector Trạng Thái 2.750 Chiều (50 Kho × 50 Khách Hàng)
+        <button class="nav-tab-btn" data-tab="tab-dataset-inspector" data-route="#/dataset">
+            🔒 5. Vector Nội Bộ 2.750 Chiều (Admin / Red Team)
         </button>
-        <button class="nav-tab-btn" data-tab="tab-security-center">
-            6. Trung Tâm SOC – Kiểm Duyệt Gói Tin Rác &amp; Phòng Thủ Đa Lớp
+        <button class="nav-tab-btn" data-tab="tab-security-center" data-route="#/soc-admin">
+            🛡️ 6. Trung Tâm SOC &amp; Phòng Thủ Đa Lớp (Chỉ Admin)
         </button>
     </nav>
 
     <main class="main-container">
+        <!-- =================================================================== -->
+        <!-- MÀN HÌNH CHỐT CHẶN TUYẾN ĐƯỜNG ĐƯỢC BẢO VỆ (SUPABASE PROTECTED ROUTE GUARD) -->
+        <!-- Hiển thị khi người dùng đã Đăng xuất (401) hoặc không đủ quyền RBAC (403) -->
+        <!-- =================================================================== -->
+        <section id="protected-route-guard-screen" class="route-guard-screen" style="display: none;">
+            <div class="route-guard-card">
+                <div class="route-guard-header">
+                    <span id="guard-status-badge" class="status-pill status-err">🛡️ 403 FORBIDDEN – PROTECTED ROUTE</span>
+                    <span id="guard-route-path" class="code-pill">Route: #/soc-admin</span>
+                </div>
+                <h2 id="guard-title">Tuyến Đường Được Bảo Vệ Bởi Supabase Auth &amp; RBAC Route Guard</h2>
+                <p id="guard-description" class="route-guard-desc">
+                    Tài khoản hiện tại không có quyền truy cập vào tuyến đường nội bộ này.
+                </p>
+
+                <div class="route-guard-details-grid">
+                    <div class="route-guard-detail-box">
+                        <span class="detail-label">Trạng thái phiên Supabase Auth (JWT)</span>
+                        <strong id="guard-current-user">Khách hàng Đại lý U1 (customer)</strong>
+                    </div>
+                    <div class="route-guard-detail-box">
+                        <span class="detail-label">Vai trò được phép truy cập Route này</span>
+                        <strong id="guard-allowed-roles" style="color: #38bdf8;">QUẢN TRỊ VIÊN (ADMIN NOC)</strong>
+                    </div>
+                    <div class="route-guard-detail-box">
+                        <span class="detail-label">Chính sách Bảo mật Supabase</span>
+                        <strong id="guard-policy-rule" style="color: #6ee7b7;">Route Guard Middleware + Postgres RLS (TO authenticated)</strong>
+                    </div>
+                </div>
+
+                <div class="route-guard-actions">
+                    <button id="btn-guard-login-admin" class="btn-primary">
+                        👨‍💼 Đăng Nhập Nhanh Quyền Admin NOC Để Mở Khóa Route Này
+                    </button>
+                    <button id="btn-guard-open-login-modal" class="btn-secondary">
+                        🔐 Mở Hộp Thoại Đăng Nhập Supabase Auth
+                    </button>
+                    <button id="btn-guard-back-safe-route" class="btn-secondary">
+                        🛒 Quay Về Tuyến Đường Được Phép (Cổng Nghiệp Vụ #/portal)
+                    </button>
+                </div>
+            </div>
+        </section>
         <!-- =================================================================== -->
         <!-- TAB 1: BÀN ĐIỀU HÀNH & TRÌNH DIỄN TẤN CÔNG TỪNG BƯỚC CHO 9 THÀNH VIÊN -->
         <!-- =================================================================== -->
@@ -775,7 +821,46 @@
                 </div>
                 <div class="portal-banner-actions">
                     <button class="btn-primary btn-sm" id="btn-portal-open-login">🔐 Đổi Tài Khoản Đăng Nhập</button>
+                    <button class="btn-secondary btn-sm" id="btn-portal-logout">🚪 Đăng Xuất (Kiểm Thử Chặn 401)</button>
                     <button class="btn-secondary btn-sm" id="btn-portal-reset-business">↺ Khôi Phục Dữ Liệu Gốc (50 Kho &amp; 50 Khách)</button>
+                </div>
+            </div>
+
+            <!-- BẢNG QUẢN TRỊ SUPABASE AUTH SESSION & MA TRẬN PHÂN QUYỀN PROTECTED ROUTES -->
+            <div class="panel-card" style="margin-bottom: 18px;">
+                <div class="panel-header">
+                    <div>
+                        <h3>🛡️ Hệ Thống Bảo Vệ Tuyến Đường (Supabase Auth Session &amp; Protected Routes Guard Matrix)</h3>
+                        <p class="text-muted">
+                            Kiểm soát truy cập dựa trên phiên JWT của Supabase Auth và phân quyền vai trò (RBAC). Thử chuyển sang vai trò <strong>Khách hàng</strong> hoặc bấm <strong>Đăng xuất</strong> rồi bấm vào các tuyến đường nội bộ (Tab 5, Tab 6) để xem Chốt chặn Protected Route hoạt động!
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #e2e8f0; cursor: pointer;">
+                            <input type="checkbox" id="toggle-strict-route-guard" checked />
+                            <strong>Bật Chốt chặn Phân quyền Route (Strict RBAC Guard)</strong>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="portal-info-strip" id="supabase-jwt-session-bar" style="margin-bottom: 12px;">
+                    <!-- Render động thông tin JWT token, Role, Auth UID -->
+                </div>
+
+                <div class="table-responsive">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Tuyến đường (URL Route)</th>
+                                <th>Tên Phân hệ / Trang chức năng</th>
+                                <th>Vai trò được phép (Allowed Roles)</th>
+                                <th>Chính sách Bảo vệ (Route Guard &amp; RLS Policy)</th>
+                                <th>Quyền của Tài khoản hiện tại</th>
+                                <th>Kiểm thử Điều hướng</th>
+                            </tr>
+                        </thead>
+                        <tbody id="protected-routes-matrix-tbody"></tbody>
+                    </table>
                 </div>
             </div>
 
@@ -1061,6 +1146,7 @@
 
     <div id="app-toast" class="app-toast">Đã sao chép!</div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="engine.js"></script>
     <script src="supabase-service.js"></script>
     <script src="app.js"></script>
