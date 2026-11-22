@@ -63,6 +63,13 @@ const PROTECTED_ROUTES_MATRIX = {
         allowedRoles: ['admin'],
         writeRoles: ['admin'],
         policyDesc: 'Tuyến đặc quyền: Chỉ Quản trị viên (Admin NOC) được phép truy cập.'
+    },
+    'tab-stealth-forensics': {
+        route: '#/stealth-forensics',
+        title: '7. Tác Động Bên Thứ 3 – Ẩn Dấu Vết & Điều Tra ATTT',
+        allowedRoles: ['admin', 'redteam'],
+        writeRoles: ['admin', 'redteam'],
+        policyDesc: 'Mô phỏng tấn công chuỗi cung ứng qua API bên thứ 3, xóa dấu vết nhật ký và điều tra khôi phục chuỗi băm SHA-256.'
     }
 };
 

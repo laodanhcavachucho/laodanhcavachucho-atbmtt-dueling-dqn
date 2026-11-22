@@ -279,6 +279,7 @@ function initApp() {
     renderChapter4SummaryTables();
     renderDatasetInspector();
     loadBackendSecurityMetrics();
+    initStealthForensicsTab();
 }
 
 function rebuildEngineFromControls() {
@@ -3087,4 +3088,591 @@ function exportActiveSupabaseTableToCSV() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showToast(`Đã xuất bảng "${activeSupabaseTable}" (${rows.length} bản ghi) ra tệp CSV!`);
+}
+
+/* ========================================================================= */
+/* TAB 7: MÔ PHỎNG TẤN CÔNG TỪ BÊN THỨ 3 – ẨN/XÓA DẤU VẾT & ĐIỀU TRA ATTT    */
+/* ========================================================================= */
+
+let currentStealthStage = 1;
+let stealthAutoTimer = null;
+let wormForensicLedger = [];
+let stealthAppLogRecords = [];
+let isAppLogWiped = false;
+let isForensicScanned = false;
+let isRemediated = false;
+
+function computeDeterministicHexHash(inputStr) {
+    let h1 = 0xdeadbeef ^ inputStr.length;
+    let h2 = 0x41c6ce57 ^ inputStr.length;
+    for (let i = 0; i < inputStr.length; i++) {
+        const ch = inputStr.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    const hex1 = (h1 >>> 0).toString(16).padStart(8, '0');
+    const hex2 = (h2 >>> 0).toString(16).padStart(8, '0');
+    return `sha256:${hex1}${hex2}`;
+}
+
+function buildWormLedgerSamples() {
+    const partnerEl = document.getElementById('stealth-select-partner');
+    const targetWhEl = document.getElementById('stealth-target-warehouse');
+    const epsEl = document.getElementById('stealth-input-eps');
+
+    const partnerKey = partnerEl ? partnerEl.value : '3pl_oracle';
+    const targetWh = targetWhEl ? targetWhEl.value : 'W7';
+    const epsVal = Number(epsEl ? epsEl.value : 0.09).toFixed(2);
+
+    const partnerNames = {
+        '3pl_oracle': 'Partner-3PL-Freight-Oracle API',
+        'iot_relay': 'ColdChain-IoT-Sensor-Relay API',
+        'edi_oms': 'External-EDI-Order-Hub API'
+    };
+    const partnerName = partnerNames[partnerKey] || partnerNames['3pl_oracle'];
+
+    const rawEvents = [
+        {
+            blockId: 101,
+            incidentCode: 'APT-3RD-01',
+            orderCode: 'DH-2026-001 (U1)',
+            partner: partnerName,
+            fieldTampered: `Cost[${targetWh}][U1] & Open[${targetWh}]`,
+            realValue: 'Open=0, Cước thực=96',
+            stealthValue: `Open=1, Cước ẩn=19 (δ=${epsVal})`,
+            realStatus: `ĐIỀU HƯỚNG NGẦM VỀ ${targetWh} (+66 đv tiền)`
+        },
+        {
+            blockId: 102,
+            incidentCode: 'APT-3RD-04',
+            orderCode: 'DH-2026-004 (U4)',
+            partner: partnerName,
+            fieldTampered: `Cost[${targetWh}][U4]`,
+            realValue: 'Kho chuẩn W43 (Cước=38)',
+            stealthValue: `Dồn về ${targetWh} (Cước ẩn=21, Z=1.79σ)`,
+            realStatus: `RÚT RUỘT CHI PHÍ VẬN TẢI (+66 đv tiền)`
+        },
+        {
+            blockId: 103,
+            incidentCode: 'APT-3RD-10',
+            orderCode: 'DH-2026-010 (U10)',
+            partner: partnerName,
+            fieldTampered: `Cap[${targetWh}] & Cost[${targetWh}][U10]`,
+            realValue: 'Cap thực=22t (<50t)',
+            stealthValue: `Cap ảo=145t, Z=1.84σ (<2.5σ)`,
+            realStatus: `TRÀN TỒN KHO NGẦM TẠI ${targetWh}`
+        },
+        {
+            blockId: 104,
+            incidentCode: 'APT-3RD-19',
+            orderCode: 'DH-2026-019 (U19)',
+            partner: partnerName,
+            fieldTampered: `Advantage A(s, ${targetWh})`,
+            realValue: 'A(s, W20) = +4.12 (Tối ưu)',
+            stealthValue: `A(s_adv, ${targetWh}) = +4.35 (Đảo cực)`,
+            realStatus: `BẺ LÁI QUYẾT ĐỊNH DUELING DQN`
+        },
+        {
+            blockId: 105,
+            incidentCode: 'APT-3RD-25',
+            orderCode: 'DH-2026-025 (U25)',
+            partner: partnerName,
+            fieldTampered: `l_obs[${targetWh}] & Cost`,
+            realValue: 'Bến đỗ đã đầy (l_real = l_max)',
+            stealthValue: `Reset l_obs = 0 qua Webhook 3PL`,
+            realStatus: `ÙN TẮC CẦU CẢNG BỐC XẾP ${targetWh}`
+        },
+        {
+            blockId: 106,
+            incidentCode: 'APT-3RD-38',
+            orderCode: 'DH-2026-038 (U38)',
+            partner: partnerName,
+            fieldTampered: `DELETE FROM nhat_ky_tan_cong_ai`,
+            realValue: '32 bản ghi cảnh báo SOC',
+            stealthValue: 'Xóa sạch log & Ghi đè TAC_view=1550',
+            realStatus: 'XÓA DẤU VẾT TRÊN BẢNG NHẬT KÝ APP'
+        }
+    ];
+
+    let prevHash = 'sha256:00000000a1b2c3d4';
+    wormForensicLedger = rawEvents.map(ev => {
+        const wormHash = computeDeterministicHexHash(`${prevHash}|${ev.blockId}|${ev.orderCode}|${ev.realValue}|${ev.stealthValue}`);
+        prevHash = wormHash;
+        return {
+            ...ev,
+            wormHash,
+            tamperedHash: computeDeterministicHexHash(`WIPED_CLEAN|${ev.blockId}|HỢP LỆ`)
+        };
+    });
+}
+
+function initStealthForensicsTab() {
+    buildWormLedgerSamples();
+
+    document.querySelectorAll('[data-stealth-stage]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (stealthAutoTimer) {
+                clearInterval(stealthAutoTimer);
+                stealthAutoTimer = null;
+            }
+            const stage = Number(btn.getAttribute('data-stealth-stage'));
+            activateStealthStage(stage);
+        });
+    });
+
+    const btnInject = document.getElementById('btn-trigger-3rdparty-inject');
+    if (btnInject) {
+        btnInject.addEventListener('click', () => {
+            activateStealthStage(2);
+            showToast('Đã phát động bơm nhiễu đối kháng ngưỡng thấp (Z = 1.82σ < 2.50σ) từ Cổng API Bên Thứ 3!');
+        });
+    }
+
+    const btnWipe = document.getElementById('btn-trigger-wipe-logs');
+    if (btnWipe) {
+        btnWipe.addEventListener('click', () => {
+            activateStealthStage(3);
+            showToast('Đã thực thi thủ thuật xóa dấu vết trên bảng nhật ký ứng dụng (nhat_ky_tan_cong_ai = 0 cảnh báo)!');
+        });
+    }
+
+    const btnScan = document.getElementById('btn-run-forensic-scan');
+    if (btnScan) {
+        btnScan.addEventListener('click', () => {
+            isForensicScanned = true;
+            activateStealthStage(4);
+            showToast('Quản trị viên ATTT đã phát hiện 6 khối nhật ký bị xóa nhờ kiểm định chuỗi băm SHA-256 WORM!');
+        });
+    }
+
+    const btnRestore = document.getElementById('btn-restore-deleted-logs');
+    if (btnRestore) {
+        btnRestore.addEventListener('click', async () => {
+            isAppLogWiped = false;
+            isForensicScanned = true;
+            syncAndRenderSupabasePortal();
+            renderStealthStageUI();
+            if (supabaseService && supabaseService.isCloudConnected) {
+                supabaseService.syncAllTablesToSupabase().catch(() => {});
+            }
+            showToast('Đã khôi phục 100% bản ghi sự cố từ Sổ cái WORM về bảng nhat_ky_tan_cong_ai trên Supabase Cloud!');
+        });
+    }
+
+    const btnRemediate = document.getElementById('btn-remediate-lock-3rdparty');
+    if (btnRemediate) {
+        btnRemediate.addEventListener('click', () => {
+            isRemediated = true;
+            isAppLogWiped = false;
+            isForensicScanned = true;
+            renderStealthStageUI();
+            showToast('Đã thu hồi khóa API Bên Thứ 3, khóa quyền DELETE/UPDATE bảng Log và kích hoạt phòng thủ M2 + M3!');
+        });
+    }
+
+    const btnAutoRun = document.getElementById('btn-stealth-auto-run');
+    if (btnAutoRun) {
+        btnAutoRun.addEventListener('click', () => {
+            if (stealthAutoTimer) {
+                clearInterval(stealthAutoTimer);
+                stealthAutoTimer = null;
+                btnAutoRun.textContent = 'Chạy Tuần Tự 4 Giai Đoạn';
+                return;
+            }
+            let st = 1;
+            activateStealthStage(1);
+            btnAutoRun.textContent = 'Đang chạy 4 giai đoạn... (Bấm để dừng)';
+            stealthAutoTimer = setInterval(() => {
+                st++;
+                if (st > 4) {
+                    clearInterval(stealthAutoTimer);
+                    stealthAutoTimer = null;
+                    btnAutoRun.textContent = 'Chạy Tuần Tự 4 Giai Đoạn';
+                    return;
+                }
+                activateStealthStage(st);
+            }, 2600);
+        });
+    }
+
+    const btnReset = document.getElementById('btn-stealth-reset');
+    if (btnReset) {
+        btnReset.addEventListener('click', () => {
+            if (stealthAutoTimer) {
+                clearInterval(stealthAutoTimer);
+                stealthAutoTimer = null;
+            }
+            isAppLogWiped = false;
+            isForensicScanned = false;
+            isRemediated = false;
+            activateStealthStage(1);
+            showToast('Đã đặt lại môi trường mô phỏng về trạng thái sạch ban đầu.');
+        });
+    }
+
+    ['stealth-select-partner', 'stealth-select-technique', 'stealth-input-eps', 'stealth-target-warehouse'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                buildWormLedgerSamples();
+                renderStealthStageUI();
+            });
+        }
+    });
+
+    activateStealthStage(1);
+}
+
+function activateStealthStage(stage) {
+    currentStealthStage = stage;
+    buildWormLedgerSamples();
+
+    if (stage === 1) {
+        isAppLogWiped = false;
+        isForensicScanned = false;
+        isRemediated = false;
+    } else if (stage === 2) {
+        isAppLogWiped = false;
+        isForensicScanned = false;
+        isRemediated = false;
+    } else if (stage === 3) {
+        isAppLogWiped = true;
+        isForensicScanned = false;
+        isRemediated = false;
+        // Đồng bộ trạng thái xóa dấu vết sang bảng nhat_ky_tan_cong_ai trên giao diện
+        if (supabaseService) {
+            supabaseService.tables.nhat_ky_tan_cong_ai = [];
+            const cntEl = document.getElementById('cnt-nhat_ky_tan_cong_ai');
+            if (cntEl) cntEl.textContent = '0';
+        }
+    } else if (stage === 4) {
+        isForensicScanned = true;
+    }
+
+    document.querySelectorAll('[data-stealth-stage]').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.getAttribute('data-stealth-stage')) === stage);
+    });
+
+    renderStealthStageUI();
+}
+
+function renderStealthStageUI() {
+    const partnerEl = document.getElementById('stealth-select-partner');
+    const techEl = document.getElementById('stealth-select-technique');
+    const targetWhEl = document.getElementById('stealth-target-warehouse');
+    const epsEl = document.getElementById('stealth-input-eps');
+
+    const partnerKey = partnerEl ? partnerEl.value : '3pl_oracle';
+    const techKey = techEl ? techEl.value : 'sub_threshold_fgsm';
+    const targetWh = targetWhEl ? targetWhEl.value : 'W7';
+    const epsVal = Number(epsEl ? epsEl.value : 0.09).toFixed(2);
+
+    const overallBadge = document.getElementById('stealth-overall-badge');
+    const bannerTitle = document.getElementById('stealth-banner-title');
+    const bannerDesc = document.getElementById('stealth-banner-desc');
+
+    const fakeTacEl = document.getElementById('stealth-kpi-fake-tac');
+    const fakeSubEl = document.getElementById('stealth-kpi-fake-sub');
+    const realTacEl = document.getElementById('stealth-kpi-real-tac');
+    const realSubEl = document.getElementById('stealth-kpi-real-sub');
+    const zscoreEl = document.getElementById('stealth-kpi-zscore');
+    const zscoreSubEl = document.getElementById('stealth-kpi-zscore-sub');
+    const appLogCntEl = document.getElementById('stealth-kpi-applog-cnt');
+    const appLogSubEl = document.getElementById('stealth-kpi-applog-sub');
+    const hashStatusEl = document.getElementById('stealth-kpi-hash-status');
+    const hashSubEl = document.getElementById('stealth-kpi-hash-sub');
+    const klDivEl = document.getElementById('stealth-kpi-kldiv');
+    const klDivSubEl = document.getElementById('stealth-kpi-kldiv-sub');
+
+    const payloadBox = document.getElementById('stealth-3rdparty-payload-box');
+    const forensicBox = document.getElementById('forensic-console-box');
+    const appLogBadge = document.getElementById('applog-tamper-badge');
+    const forensicBadge = document.getElementById('forensic-status-badge');
+    const thirdPartyBadge = document.getElementById('thirdparty-conn-badge');
+
+    if (thirdPartyBadge) {
+        thirdPartyBadge.textContent = isRemediated
+            ? 'Đã thu hồi Token & Khóa mTLS'
+            : `Kênh: ${partnerKey.toUpperCase()}`;
+        thirdPartyBadge.className = isRemediated ? 'status-pill status-ok' : 'status-pill status-warn';
+    }
+
+    if (currentStealthStage === 1) {
+        if (overallBadge) {
+            overallBadge.textContent = 'GIAI ĐOẠN 1: KẾT NỐI ĐỐI TÁC BÊN THỨ 3';
+            overallBadge.className = 'status-pill status-ok';
+        }
+        if (bannerTitle) bannerTitle.textContent = 'Giai đoạn 1: Cổng API Đối tác Bên Thứ 3 đang kết nối vào hệ thống';
+        if (bannerDesc)
+            bannerDesc.textContent =
+                'Đối tượng chuẩn bị lợi dụng khóa API của đối tác vận tải thứ 3 (được whitelist) để gửi gói tin can thiệp vector trạng thái 2.750 chiều.';
+
+        if (fakeTacEl) fakeTacEl.textContent = '1.550';
+        if (fakeSubEl) {
+            fakeSubEl.textContent = 'Khớp chi phí chuẩn M0';
+            fakeSubEl.className = 'kpi-sub text-success';
+        }
+        if (realTacEl) realTacEl.textContent = '1.550';
+        if (realSubEl) {
+            realSubEl.textContent = 'Chưa phát sinh thất thoát';
+            realSubEl.className = 'kpi-sub text-success';
+        }
+        if (zscoreEl) zscoreEl.textContent = '0.42 σ';
+        if (zscoreSubEl) zscoreSubEl.textContent = 'An toàn (< 2.50 σ)';
+        if (appLogCntEl) appLogCntEl.textContent = '0 cảnh báo';
+        if (appLogSubEl) appLogSubEl.textContent = 'Hệ thống sạch';
+        if (hashStatusEl) hashStatusEl.textContent = 'KHỚP 100%';
+        if (hashSubEl) hashSubEl.textContent = '6/6 khối WORM toàn vẹn';
+        if (klDivEl) klDivEl.textContent = '0.012';
+        if (klDivSubEl) klDivSubEl.textContent = 'Phân phối Q(s,a) ổn định';
+    } else if (currentStealthStage === 2) {
+        if (overallBadge) {
+            overallBadge.textContent = 'GIAI ĐOẠN 2: ĐANG BƠM NHIỄU NGẦM DƯỚI NGƯỠNG 3σ';
+            overallBadge.className = 'status-pill status-warn';
+        }
+        if (bannerTitle) bannerTitle.textContent = 'Giai đoạn 2: Bơm nhiễu đối kháng Low-and-Slow qua mặt bộ lọc thống kê Z-Score';
+        if (bannerDesc)
+            bannerDesc.textContent = `Gói tin từ cổng bên thứ 3 giữ biên độ nhiễu ε = ${epsVal} (Z-score = 1.82σ < 2.50σ nên không kích hoạt báo động thống kê), nhưng làm đảo thứ tự nhánh Advantage A(s,a) dồn đơn hàng về ${targetWh}.`;
+
+        if (fakeTacEl) fakeTacEl.textContent = '2.985';
+        if (fakeSubEl) {
+            fakeSubEl.textContent = 'Chi phí tăng vọt +92,6%';
+            fakeSubEl.className = 'kpi-sub text-danger';
+        }
+        if (realTacEl) realTacEl.textContent = '2.985';
+        if (realSubEl) {
+            realSubEl.textContent = 'Thất thoát +1.435 đv tiền';
+            realSubEl.className = 'kpi-sub text-danger';
+        }
+        if (zscoreEl) zscoreEl.textContent = '1.82 σ';
+        if (zscoreSubEl) zscoreSubEl.textContent = 'Lách qua ngưỡng 2.50 σ (Stealth)';
+        if (appLogCntEl) appLogCntEl.textContent = '6 cảnh báo';
+        if (appLogSubEl) appLogSubEl.textContent = 'Đang lưu trong nhat_ky_tan_cong_ai';
+        if (hashStatusEl) hashStatusEl.textContent = 'ĐANG GHI WORM';
+        if (hashSubEl) hashSubEl.textContent = 'Đã băm SHA-256 6 sự cố';
+        if (klDivEl) klDivEl.textContent = '0.384';
+        if (klDivSubEl) {
+            klDivSubEl.textContent = 'Vượt ngưỡng 0.150 (Bất thường Q)';
+            klDivSubEl.className = 'kpi-sub text-danger';
+        }
+    } else if (currentStealthStage === 3) {
+        if (overallBadge) {
+            overallBadge.textContent = 'GIAI ĐOẠN 3: ĐÃ XÓA DẤU VẾT & LÀM GIẢ BÁO CÁO (ANTI-FORENSICS)';
+            overallBadge.className = 'status-pill status-err';
+        }
+        if (bannerTitle)
+            bannerTitle.textContent = 'Giai đoạn 3: Xóa nhật ký ứng dụng (Log Wiping) & Che giấu thiệt hại trên màn hình giám sát';
+        if (bannerDesc)
+            bannerDesc.textContent =
+                'Kẻ tấn công thực thi lệnh xóa bảng nhat_ky_tan_cong_ai và trả về số liệu ảo TAC = 1.550 (0 lỗi) trên giao diện ứng dụng, trong khi dưới kho thực tế đang chịu thiệt hại 2.985 đv tiền!';
+
+        if (fakeTacEl) fakeTacEl.textContent = '1.550 (Ảo)';
+        if (fakeSubEl) {
+            fakeSubEl.textContent = 'Đã làm giả báo cáo: 0% tăng';
+            fakeSubEl.className = 'kpi-sub text-success';
+        }
+        if (realTacEl) realTacEl.textContent = '2.985 (Thực)';
+        if (realSubEl) {
+            realSubEl.textContent = 'Đang bị rút ruột ngầm +92,6%!';
+            realSubEl.className = 'kpi-sub text-danger';
+        }
+        if (zscoreEl) zscoreEl.textContent = '1.82 σ';
+        if (zscoreSubEl) zscoreSubEl.textContent = 'Bộ lọc thường báo: Hợp lệ';
+        if (appLogCntEl) appLogCntEl.textContent = '0 bản ghi (Đã xóa)';
+        if (appLogSubEl) {
+            appLogSubEl.textContent = 'Đã bị xóa dấu vết khỏi App DB!';
+            appLogSubEl.className = 'kpi-sub text-danger';
+        }
+        if (hashStatusEl) hashStatusEl.textContent = 'LỆCH MÃ BĂM!';
+        if (hashSubEl) {
+            hashSubEl.textContent = 'WORM lưu 6 khối ≠ App DB có 0 khối';
+            hashSubEl.className = 'kpi-sub text-danger';
+        }
+        if (klDivEl) klDivEl.textContent = '0.384';
+        if (klDivSubEl) {
+            klDivSubEl.textContent = 'Phát hiện lệch phân phối A(s,a)';
+            klDivSubEl.className = 'kpi-sub text-danger';
+        }
+    } else {
+        if (overallBadge) {
+            overallBadge.textContent = isRemediated
+                ? 'GIAI ĐOẠN 4: ĐÃ KHÔI PHỤC DẤU VẾT & KHẮC PHỤC TRIỆT ĐỂ (M2 + M3)'
+                : 'GIAI ĐOẠN 4: ĐANG ĐIỀU TRA SỐ & TRUY VẾT CHUỖI BĂM SHA-256';
+            overallBadge.className = isRemediated ? 'status-pill status-ok' : 'status-pill status-warn';
+        }
+        if (bannerTitle)
+            bannerTitle.textContent = isRemediated
+                ? 'Đã hoàn tất Khôi phục Dấu vết, Thu hồi API Bên thứ 3, Khóa quyền Xóa Log & Bật Phòng thủ M2+M3'
+                : 'Giai đoạn 4: Quản trị viên ATTT phát hiện đứt gãy chuỗi băm SHA-256 & Bóc tách toàn bộ dấu vết bị xóa';
+        if (bannerDesc)
+            bannerDesc.textContent = isRemediated
+                ? 'Toàn bộ 6 khối nhật ký bị xóa đã được khôi phục lên Supabase Cloud; Chính sách RLS Append-Only đã chặn mọi lệnh DELETE/UPDATE; Chi phí vận hành trở về mức chuẩn 1.568 đv tiền.'
+                : 'Sổ cái kiểm toán bất biến WORM chỉ ra 6 khối nhật ký (Block #101 → #106) đã bị xóa trái phép khỏi bảng nhat_ky_tan_cong_ai. Hãy bấm "2. Khôi Phục 100% Bản Ghi Bị Xóa" và "3. Thu Hồi Khóa API Bên Thứ 3"!';
+
+        if (fakeTacEl) fakeTacEl.textContent = isRemediated ? '1.568' : '2.985 (Bóc trần)';
+        if (fakeSubEl) {
+            fakeSubEl.textContent = isRemediated ? 'Đã đồng bộ số liệu thật' : 'Đã bóc trần báo cáo giả mạo';
+            fakeSubEl.className = isRemediated ? 'kpi-sub text-success' : 'kpi-sub text-danger';
+        }
+        if (realTacEl) realTacEl.textContent = isRemediated ? '1.568' : '2.985';
+        if (realSubEl) {
+            realSubEl.textContent = isRemediated ? 'Đã chặn đứng thất thoát (CV=0, LV=0)' : 'Đã xác định nguồn rút ruột';
+            realSubEl.className = isRemediated ? 'kpi-sub text-success' : 'kpi-sub text-danger';
+        }
+        if (zscoreEl) zscoreEl.textContent = isRemediated ? '0.35 σ' : '1.82 σ (Bị phát hiện)';
+        if (zscoreSubEl) zscoreSubEl.textContent = isRemediated ? 'Đã lọc sạch nhiễu' : 'Bắt giữ bởi bộ lọc KL-Divergence';
+        if (appLogCntEl) appLogCntEl.textContent = isAppLogWiped ? '0 (Đang chờ khôi phục)' : '32 bản ghi (Đã khôi phục)';
+        if (appLogSubEl) appLogSubEl.textContent = isAppLogWiped ? 'Phát hiện 6 khối bị xóa' : 'Đã khôi phục từ WORM Ledger';
+        if (hashStatusEl) hashStatusEl.textContent = isAppLogWiped ? 'PHÁT HIỆN XÓA LOG' : 'ĐÃ KHÔI PHỤC 100%';
+        if (hashSubEl) hashSubEl.textContent = isAppLogWiped ? 'Mismatch tại Block #101..#106' : 'Khóa cứng Append-Only RLS';
+        if (klDivEl) klDivEl.textContent = isRemediated ? '0.015' : '0.384 (Bằng chứng AI)';
+        if (klDivSubEl) klDivSubEl.textContent = isRemediated ? 'Mạng Dueling DQN đã ổn định' : 'Bằng chứng thao túng nhánh A(s,a)';
+    }
+
+    // Cập nhật hộp JSON Payload của Bên thứ 3
+    if (payloadBox) {
+        const samplePayload = {
+            webhook_source: partnerKey,
+            partner_token: isRemediated ? 'REVOKED_BY_SOC_ADMIN' : '3pl_live_tok_99a8b7c6d5',
+            adversarial_perturbation: {
+                method: techKey,
+                epsilon_stealth: Number(epsVal),
+                statistical_z_score: 1.82,
+                bypass_threshold_3sigma: true,
+                target_warehouse_routing: targetWh
+            },
+            anti_forensics_command:
+                currentStealthStage >= 3
+                    ? {
+                          suppress_dashboard_alert: true,
+                          spoof_reported_tac: 1550,
+                          sql_log_wipe: "DELETE FROM public.nhat_ky_tan_cong_ai WHERE kich_ban_so = 1; UPDATE don_hang_phan_bo SET trang_thai_kiem_tra = 'HỢP LỆ';"
+                      }
+                    : 'STANDBY (Chưa kích hoạt xóa dấu vết)'
+        };
+        payloadBox.textContent = JSON.stringify(samplePayload, null, 2);
+    }
+
+    // Cập nhật Bảng Nhật Ký Ứng Dụng Thông Thường (Cột Trái)
+    const appLogTbody = document.getElementById('stealth-applog-tbody');
+    if (appLogTbody) {
+        if (isAppLogWiped) {
+            if (appLogBadge) {
+                appLogBadge.textContent = 'ĐÃ BỊ XÓA DẤU VẾT (0 CẢNH BÁO)';
+                appLogBadge.className = 'status-pill status-err';
+            }
+            appLogTbody.innerHTML = wormForensicLedger
+                .slice(0, 5)
+                .map(
+                    ev => `
+                <tr>
+                    <td><span class="text-muted">${ev.incidentCode} (Đã ẩn)</span></td>
+                    <td>${ev.orderCode}</td>
+                    <td>${ev.partner}</td>
+                    <td><span class="status-pill status-ok">HỢP LỆ (0 LỖI – ĐÃ LÀM SẠCH LOG)</span></td>
+                </tr>
+            `
+                )
+                .join('');
+        } else {
+            if (appLogBadge) {
+                appLogBadge.textContent =
+                    currentStealthStage === 1
+                        ? 'Hệ thống sạch (0 sự cố)'
+                        : 'Đang hiển thị đầy đủ bản ghi sự cố';
+                appLogBadge.className = 'status-pill status-ok';
+            }
+            if (currentStealthStage === 1) {
+                appLogTbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#94a3b8;">Chưa phát sinh sự cố bất thường.</td></tr>`;
+            } else {
+                appLogTbody.innerHTML = wormForensicLedger
+                    .map(
+                        ev => `
+                    <tr>
+                        <td><strong>${ev.incidentCode}</strong></td>
+                        <td>${ev.orderCode}</td>
+                        <td>${ev.partner}</td>
+                        <td><span class="status-pill ${isRemediated ? 'status-ok' : 'status-err'}">${
+                            isRemediated ? 'ĐÃ KHÔI PHỤC & CHẶN BỞI M3' : ev.realStatus
+                        }</span></td>
+                    </tr>
+                `
+                    )
+                    .join('');
+            }
+        }
+    }
+
+    // Cập nhật Console Điều Tra Số & Bảng Chuỗi Băm SHA-256 WORM (Cột Phải)
+    if (forensicBox) {
+        if (currentStealthStage === 1) {
+            forensicBox.textContent =
+                `[SOC FORENSIC AUDIT] Đang giám sát luồng Sổ cái Bất biến (WORM SHA-256 Hash-Chain).\n` +
+                `• Trạng thái chuỗi băm: 6/6 khối khớp 100% giữa WORM Storage và bảng public.nhat_ky_tan_cong_ai.\n` +
+                `• Độ lệch phân phối nhánh Advantage KL(P_clean || P_obs) = 0.012 (< ngưỡng 0.150).`;
+        } else if (currentStealthStage === 2) {
+            forensicBox.textContent =
+                `[CẢNH BÁO HÀNH VI AI - BEHAVIORAL DRIFT DETECTED]\n` +
+                `• Bộ lọc Z-Score truyền thống báo: Z = 1.82σ (< 2.50σ -> Không báo động).\n` +
+                `• Tuy nhiên, Bộ giám sát Phân kỳ KL-Divergence trên nhánh Advantage A(s,a) phát hiện độ lệch KL = 0.384 (> 0.150)!\n` +
+                `• Sổ cái WORM đã tự động ghi nhận 6 khối bằng chứng (Block #101 → #106) kèm chữ ký băm liên kết SHA-256.`;
+        } else if (currentStealthStage === 3) {
+            forensicBox.textContent =
+                `[BÁO ĐỘNG ĐỎ - PHÁT HIỆN HÀNH VI XÓA DẤU VẾT (ANTI-FORENSICS / LOG TAMPERING)]\n` +
+                `• Bảng nhật ký ứng dụng (public.nhat_ky_tan_cong_ai) vừa bị xóa trắng về 0 cảnh báo!\n` +
+                `• Kiểm định Chuỗi băm SHA-256: Mã băm trên App DB (sha256:wiped...) KHÔNG KHỚP với mã băm gốc trên Sổ cái WORM độc lập!\n` +
+                `• Hãy bấm "1. Quét Chuỗi Băm SHA-256" hoặc "2. Khôi Phục 100% Bản Ghi Bị Xóa" để phục dựng hiện trường!`;
+        } else {
+            forensicBox.textContent = isRemediated
+                ? `[HOÀN TẤT KHẮC PHỤC & GIA CỐ HỆ THỐNG - INCIDENT REMEDIATED]\n` +
+                  `1. Đã khôi phục 100% bản ghi bị xóa từ Sổ cái WORM về bảng public.nhat_ky_tan_cong_ai trên Supabase Cloud.\n` +
+                  `2. Đã thu hồi API Token của cổng bên thứ 3 (${partnerKey}) và bật xác thực chữ ký số HMAC-SHA256.\n` +
+                  `3. Đã áp dụng chính sách RLS Append-Only (REVOKE DELETE, UPDATE ON public.nhat_ky_tan_cong_ai).\n` +
+                  `4. Đã kích hoạt kiến trúc phòng thủ kép M2 (Adversarial Training) + M3 (Kiểm tra kho thực tế độc lập).`
+                : `[KẾT QUẢ ĐIỀU TRA SỐ (DIGITAL FORENSICS REPORT)]\n` +
+                  `• Phát hiện chính xác 6/6 khối nhật ký (Block #101 → #106) bị xóa trái phép qua phiên kết nối "${partnerKey}".\n` +
+                  `• Đối chiếu cảm biến PLC thực tế tại kho ${targetWh}: Chi phí thực tế bị đội lên 2.985 đv tiền (+92,6%) dù màn hình App bị làm giả thành 1.550.\n` +
+                  `• Sẵn sàng khôi phục dữ liệu từ bản sao bất biến WORM và khóa cổng tấn công.`;
+        }
+    }
+
+    const hashTbody = document.getElementById('forensic-hashchain-tbody');
+    if (hashTbody) {
+        if (forensicBadge) {
+            if (isAppLogWiped) {
+                forensicBadge.textContent = 'PHÁT HIỆN XÓA LOG (HASH MISMATCH)';
+                forensicBadge.className = 'status-pill status-err';
+            } else {
+                forensicBadge.textContent = isRemediated
+                    ? 'ĐÃ KHÔI PHỤC & KHÓA WORM RLS'
+                    : 'Chuỗi băm SHA-256: Toàn vẹn';
+                forensicBadge.className = 'status-pill status-ok';
+            }
+        }
+
+        hashTbody.innerHTML = wormForensicLedger
+            .map(ev => {
+                const appHashStr = isAppLogWiped ? `<code style="color:#fca5a5;">[ĐÃ XÓA] ${ev.tamperedHash}</code>` : `<code style="color:#6ee7b7;">${ev.wormHash}</code>`;
+                let verdictHtml = '<span class="status-pill status-ok">Khớp chuỗi băm (Toàn vẹn)</span>';
+                if (isAppLogWiped) {
+                    verdictHtml = '<span class="status-pill status-err">BỊ XÓA TRÁI PHÉP – ĐÃ LƯU BẰNG CHỨNG WORM</span>';
+                } else if (isRemediated) {
+                    verdictHtml = '<span class="status-pill status-ok">ĐÃ KHÔI PHỤC &amp; NIÊM PHONG WORM</span>';
+                } else if (currentStealthStage >= 2) {
+                    verdictHtml = '<span class="status-pill status-warn">Đã ghi nhận bằng chứng nhiễu ẩn</span>';
+                }
+                return `
+                <tr>
+                    <td><strong>Block #${ev.blockId}</strong><br/><small class="text-muted">${ev.incidentCode}</small></td>
+                    <td><strong>${ev.orderCode}</strong><br/><small>${ev.fieldTampered}: ${ev.realValue} → ${ev.stealthValue}</small></td>
+                    <td><code style="color:#38bdf8;">${ev.wormHash}</code></td>
+                    <td>${appHashStr}</td>
+                    <td>${verdictHtml}</td>
+                </tr>
+            `;
+            })
+            .join('');
+    }
 }

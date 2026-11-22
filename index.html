@@ -67,6 +67,9 @@
         <button class="nav-tab-btn" data-tab="tab-security-center" data-route="#/soc-admin">
             6. Trung Tâm SOC &amp; Phòng Thủ Đa Lớp
         </button>
+        <button class="nav-tab-btn" data-tab="tab-stealth-forensics" data-route="#/stealth-forensics" id="nav-btn-stealth-forensics">
+            7. Tác Động Bên Thứ 3 – Ẩn Dấu Vết &amp; Điều Tra ATTT
+        </button>
     </nav>
 
     <main class="main-container">
@@ -995,6 +998,295 @@
                         <thead id="supabase-explorer-thead"></thead>
                         <tbody id="supabase-explorer-tbody"></tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- TAB 7: KỊCH BẢN TẤN CÔNG TỪ BÊN THỨ 3 – ẨN DẤU VẾT & ĐIỀU TRA ATTT  -->
+        <!-- =================================================================== -->
+        <section id="tab-stealth-forensics" class="tab-panel">
+            <!-- THANH ĐIỀU KHIỂN 4 GIAI ĐOẠN: TẤN CÔNG BÊN THỨ 3 -> ẨN NHIỄU -> XÓA DẤU VẾT -> ĐIỀU TRA & KHẮC PHỤC -->
+            <div class="control-panel-card">
+                <div class="panel-header" style="margin-bottom: 12px;">
+                    <div>
+                        <h3>Kịch Bản Chuyên Sâu: Tấn Công Qua Cổng API Bên Thứ 3, Kỹ Thuật Ẩn/Xóa Dấu Vết &amp; Nghiệp Vụ Điều Tra Của Quản Trị Viên ATTT</h3>
+                        <p class="text-muted">
+                            Mô phỏng cuộc tấn công chuỗi cung ứng (Supply-Chain AI Attack) từ ứng dụng đối tác bên thứ 3 kết hợp kỹ thuật ngụy trang ngưỡng thống kê và xóa nhật ký sự cố, đối chiếu với quy trình điều tra số (Digital Forensics) và khắc phục của Quản trị viên An toàn Bảo mật Thông tin.
+                        </p>
+                    </div>
+                    <span id="stealth-overall-badge" class="status-pill status-ok">TRẠNG THÁI: GIÁM SÁT BÌNH THƯỜNG</span>
+                </div>
+
+                <!-- 4 NÚT GIAI ĐOẠN THỰC HÀNH -->
+                <div class="workflow-steps-grid" style="margin-bottom: 14px;">
+                    <button class="wf-step-btn active" data-stealth-stage="1">
+                        <span class="wf-step-num">Giai đoạn 1 • Xâm nhập</span>
+                        <span class="wf-step-title">1. Giả Lập App Bên Thứ 3</span>
+                        <span class="wf-step-desc">Chiếm quyền Webhook đối tác (3PL Pricing / IoT Relay) để gửi gói tin hợp lệ về cấu trúc.</span>
+                    </button>
+                    <button class="wf-step-btn" data-stealth-stage="2">
+                        <span class="wf-step-num">Giai đoạn 2 • Ngụy trang AI</span>
+                        <span class="wf-step-title">2. Nhiễu Ẩn Dưới Ngưỡng 3σ</span>
+                        <span class="wf-step-desc">Bơm nhiễu Low-and-Slow FGSM (Z-score = 1.82 &lt; 2.5σ) qua mặt bộ lọc thống kê nhưng bẻ lái điểm Q(s,a).</span>
+                    </button>
+                    <button class="wf-step-btn" data-stealth-stage="3">
+                        <span class="wf-step-num">Giai đoạn 3 • Xóa dấu vết</span>
+                        <span class="wf-step-title">3. Xóa Log &amp; Làm Giả Báo Cáo</span>
+                        <span class="wf-step-desc">Xóa bản ghi trong bảng nhat_ky_tan_cong_ai và ghi đè cờ trạng thái thành "0 Cảnh báo / Hợp lệ".</span>
+                    </button>
+                    <button class="wf-step-btn" data-stealth-stage="4">
+                        <span class="wf-step-num">Giai đoạn 4 • Điều tra &amp; Khắc phục</span>
+                        <span class="wf-step-title">4. Điều Tra Chuỗi Băm &amp; Vá Lỗ Hổng</span>
+                        <span class="wf-step-desc">Quản trị viên ATTT đối chiếu Sổ cái Băm bất biến SHA-256, khôi phục 100% dấu vết bị xóa và khóa cổng.</span>
+                    </button>
+                </div>
+
+                <div id="stealth-stage-banner" class="wf-active-banner">
+                    <div>
+                        <strong id="stealth-banner-title">Giai đoạn 1: Kết nối Cổng API Đối tác Bên Thứ 3</strong>
+                        <span id="stealth-banner-desc">Cổng Webhook đối tác thứ 3 đang gửi dữ liệu đồng bộ giá cước và cảm biến kho định kỳ vào hệ thống VietLogix AI.</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="btn-stealth-auto-run" class="btn-primary btn-sm">Chạy Tuần Tự 4 Giai Đoạn</button>
+                        <button id="btn-stealth-reset" class="btn-secondary btn-sm">Đặt Lại Trạng Thái Sạch</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6 CHỈ SỐ ĐỐI CHỨNG: HIỂN THỊ ẢO TRÊN MÀN HÌNH BỊ CHE GIẤU VS THIỆT HẠI THỰC TẾ & PHÁT HIỆN FORENSICS -->
+            <div class="kpi-grid" style="margin-bottom: 18px;">
+                <div class="kpi-card">
+                    <div class="kpi-title">1. Chi phí hiển thị trên bảng bị làm giả</div>
+                    <div id="stealth-kpi-fake-tac" class="kpi-value">1.550</div>
+                    <div id="stealth-kpi-fake-sub" class="kpi-sub text-success">Báo cáo ảo: Bình thường (0% tăng)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">2. Chi phí vận hành thực tế bị rút ruột</div>
+                    <div id="stealth-kpi-real-tac" class="kpi-value">1.550</div>
+                    <div id="stealth-kpi-real-sub" class="kpi-sub">Đối chiếu hóa đơn kho thực tế</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">3. Điểm Z-Score Bộ lọc Thống kê</div>
+                    <div id="stealth-kpi-zscore" class="kpi-value">0.42 σ</div>
+                    <div id="stealth-kpi-zscore-sub" class="kpi-sub">Ngưỡng báo động chuẩn: 2.50 σ</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">4. Số bản ghi sự cố trên Bảng Log Ứng dụng</div>
+                    <div id="stealth-kpi-applog-cnt" class="kpi-value">0 bản ghi</div>
+                    <div id="stealth-kpi-applog-sub" class="kpi-sub">Bảng nhat_ky_tan_cong_ai</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">5. Kiểm định Chuỗi Băm SHA-256 (WORM)</div>
+                    <div id="stealth-kpi-hash-status" class="kpi-value">TOÀN VẸN</div>
+                    <div id="stealth-kpi-hash-sub" class="kpi-sub">Sổ cái kiểm toán độc lập</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">6. Độ lệch KL-Divergence Nhánh A(s,a)</div>
+                    <div id="stealth-kpi-kldiv" class="kpi-value">0.012</div>
+                    <div id="stealth-kpi-kldiv-sub" class="kpi-sub">Ngưỡng phát hiện AI bị thao túng: 0.150</div>
+                </div>
+            </div>
+
+            <!-- LƯỚI 2 CỘT: GIẢ LẬP WEB/APP BÊN THỨ 3 TÁC ĐỘNG & XÓA DẤU VẾT (TRÁI) VS BÀN ĐIỀU TRA SỐ CỦA QUẢN TRỊ VIÊN ATTT (PHẢI) -->
+            <div class="visualizer-grid" style="margin-bottom: 18px;">
+                <!-- CỘT TRÁI: GIẢ LẬP ỨNG DỤNG / WEB BÊN THỨ 3 TÁC ĐỘNG & XÓA DẤU VẾT -->
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Giả Lập Ứng Dụng / Cổng API Bên Thứ 3 Tác Động &amp; Kỹ Thuật Ẩn/Xóa Dấu Vết</h3>
+                            <p class="text-muted">Mô phỏng công cụ gửi Webhook từ đối tác thứ 3 can thiệp ngầm vào vector trạng thái và xóa dấu vết trên bảng nhật ký</p>
+                        </div>
+                        <span id="thirdparty-conn-badge" class="status-pill status-warn">Kênh: Partner-3PL-Webhook</span>
+                    </div>
+
+                    <div class="portal-form-grid">
+                        <div class="control-group">
+                            <label>Chọn Cổng Đối tác Bên Thứ 3 bị lợi dụng</label>
+                            <select id="stealth-select-partner" class="select-input">
+                                <option value="3pl_oracle">1. Partner-3PL-Freight-Oracle (API Đồng bộ Bảng giá &amp; Phụ phí nhiên liệu)</option>
+                                <option value="iot_relay">2. ColdChain-IoT-Sensor-Relay (Cổng trung gian Cảm biến Tồn kho &amp; Cửa kho)</option>
+                                <option value="edi_oms">3. External-EDI-Order-Hub (Cổng đồng bộ Đơn đặt hàng B2B bên thứ 3)</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Kỹ thuật Ngụy trang &amp; Xóa dấu vết (Stealth &amp; Anti-Forensics)</label>
+                            <select id="stealth-select-technique" class="select-input">
+                                <option value="sub_threshold_fgsm">A. Nhiễu FGSM Ngưỡng Thấp (|δ| ≤ 1.8σ) + Ghi đè Log Trạng thái Hợp lệ</option>
+                                <option value="log_truncation">B. Xóa Bản ghi Cảnh báo trong bảng nhat_ky_tan_cong_ai (Log Wiping)</option>
+                                <option value="timestamp_timestomp">C. Giả mạo Chữ ký Thời gian &amp; Mã Phiên đối tác (Session Replay &amp; Spoofing)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="portal-form-grid" style="margin-top: 10px;">
+                        <div class="control-group">
+                            <label>Biên độ nhiễu ẩn ε_stealth (Giữ dưới ngưỡng 0.12 để lách bộ lọc Z-score)</label>
+                            <input type="number" id="stealth-input-eps" class="number-input" min="0.02" max="0.25" step="0.01" value="0.09" />
+                        </div>
+                        <div class="control-group">
+                            <label> Kho mục tiêu muốn dồn đơn hàng ngầm về (Target Routing)</label>
+                            <select id="stealth-target-warehouse" class="select-input">
+                                <option value="W7">Kho W7 (Đang bảo trì / Cước ẩn cao)</option>
+                                <option value="W15">Kho W15 (Tuyến đường vòng tốn nhiên liệu)</option>
+                                <option value="W28">Kho W28 (Kho sắp cạn tồn kho khả dụng)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+                        <button id="btn-trigger-3rdparty-inject" class="btn-danger-glow btn-sm">
+                            1. Phát Động Bơm Nhiễu Ngầm Từ App Bên Thứ 3
+                        </button>
+                        <button id="btn-trigger-wipe-logs" class="btn-secondary btn-sm">
+                            2. Thực Thi Xóa Dấu Vết Trên Bảng Nhật Ký Ứng Dụng
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <strong style="font-size: 12.5px; color: #fb923c;">Gói tin JSON Webhook từ Bên Thứ 3 &amp; Lệnh Che Giấu Nhật Ký:</strong>
+                        <pre id="stealth-3rdparty-payload-box" class="console-log-box" style="max-height: 175px;"></pre>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="font-size: 12.5px; color: #e2e8f0;">Bảng Nhật Ký Ứng Dụng Thông Thường (nhat_ky_tan_cong_ai – Đã bị can thiệp xóa dấu vết):</strong>
+                            <span id="applog-tamper-badge" class="status-pill status-ok">Đang hiển thị bình thường</span>
+                        </div>
+                        <div class="table-responsive" style="max-height: 190px; overflow-y: auto;">
+                            <table class="report-table">
+                                <thead>
+                                    <tr>
+                                        <th>Mã sự cố</th>
+                                        <th>Đơn hàng</th>
+                                        <th>Nguồn gửi</th>
+                                        <th>Trạng thái hiển thị trên App</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stealth-applog-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT PHẢI: BÀN ĐIỀU TRA SỐ (DIGITAL FORENSICS) & KHẮC PHỤC CỦA QUẢN TRỊ VIÊN ATTT -->
+                <div class="panel-card">
+                    <div class="panel-header">
+                        <div>
+                            <h3>Bàn Điều Tra Số (Digital Forensics) &amp; Khôi Phục Dấu Vết Của Quản Trị Viên ATTT</h3>
+                            <p class="text-muted">Đối chiếu Sổ cái Chuỗi băm bất biến (WORM SHA-256 Hash-Chain), Cảm biến PLC độc lập và Khắc phục sự cố</p>
+                        </div>
+                        <span id="forensic-status-badge" class="status-pill status-ok">Chuỗi băm: Khớp 100%</span>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                        <button id="btn-run-forensic-scan" class="btn-primary btn-sm">
+                            1. Quét Chuỗi Băm SHA-256 &amp; Đối Chiếu Sổ Cái WORM Độc Lập
+                        </button>
+                        <button id="btn-restore-deleted-logs" class="btn-secondary btn-sm">
+                            2. Khôi Phục 100% Bản Ghi Bị Xóa Về Supabase Cloud
+                        </button>
+                        <button id="btn-remediate-lock-3rdparty" class="btn-primary btn-sm">
+                            3. Thu Hồi Khóa API Bên Thứ 3 &amp; Bật Phòng Thủ Kép (M2 + M3)
+                        </button>
+                    </div>
+
+                    <div>
+                        <strong style="font-size: 12.5px; color: #38bdf8;">Nhật Ký Điều Tra Số &amp; Phân Tích Chuỗi Băm Bất Biến (Forensic Audit Console):</strong>
+                        <pre id="forensic-console-box" class="console-log-box" style="max-height: 175px;">[HỆ THỐNG ĐIỀU TRA SỐ ATTT] Sẵn sàng kiểm định tính toàn vẹn chuỗi băm SHA-256 và đối chiếu telemetry độc lập.</pre>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <strong style="font-size: 12.5px; color: #34d399;">Sổ Cái Kiểm Toán Bất Biến WORM (SHA-256 Hash-Chain Ledger – Phát hiện mọi bản ghi bị xóa/sửa):</strong>
+                        </div>
+                        <div class="table-responsive" style="max-height: 225px; overflow-y: auto;">
+                            <table class="report-table">
+                                <thead>
+                                    <tr>
+                                        <th>Khối (#Block)</th>
+                                        <th>Đơn hàng &amp; Trường dữ liệu</th>
+                                        <th>Mã băm gốc (WORM SHA-256)</th>
+                                        <th>Mã băm hiện tại trên App DB</th>
+                                        <th>Kết luận Điều tra Forensics</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="forensic-hashchain-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HỒ SƠ CHUYÊN GIA QUẢN TRỊ ATTT: PHƯƠNG THỨC THỦ THUẬT, TRUY VẾT VÀ BIỆN PHÁP PHÒNG NGỪA / KHẮC PHỤC -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div>
+                        <h3>Hồ Sơ Phân Tích Kỹ Thuật Của Nhà Quản Trị An Toàn Bảo Mật Thông Tin (Phương Thức, Truy Vết &amp; Khắc Phục)</h3>
+                    </div>
+                </div>
+
+                <div class="storyboard-grid" style="margin-bottom: 0;">
+                    <div class="story-card story-attack">
+                        <div class="story-card-head" style="color: #fb923c;">
+                            <span>1. Thủ Thuật Tấn Công Qua Bên Thứ 3 &amp; Ẩn Nhiễu</span>
+                        </div>
+                        <p>
+                            <strong>a) Tấn công chuỗi cung ứng API (Third-Party API Abuse):</strong> Kẻ tấn công không đánh trực diện vào máy chủ AI nội bộ mà lợi dụng cổng Webhook của đối tác thứ 3 (như dịch vụ báo giá cước vận tải 3PL hoặc trạm trung chuyển cảm biến IoT) vốn được hệ thống tin cậy (Whitelisted IP/Token).
+                        </p>
+                        <p style="margin-top: 6px;">
+                            <strong>b) Ngụy trang thống kê dưới ngưỡng phát hiện (Sub-Threshold Stealth FGSM):</strong> Thay vì bơm nhiễu biên độ lớn dễ bị bộ lọc Z-score chặn, kẻ tấn công giải bài toán tối ưu có ràng buộc:
+                        </p>
+                        <code class="formula-chip">δ_stealth = argmax_{||δ||_∞ ≤ ε_low} [Q(s+δ, a_target) - max_{a≠a_target} Q(s+δ, a)]  s.t.  |Z(s+δ)| &lt; 2.5σ</code>
+                        <p style="margin-top: 6px;">
+                            Nhờ giữ độ lệch chuẩn dưới 2.5σ, bộ kiểm duyệt đầu vào thông thường đánh giá gói tin là biến động giá nhiên liệu tự nhiên, nhưng thực chất thứ tự nhánh lợi thế <code>A(s, a; θ)</code> của mạng Dueling DQN đã bị đảo ngầm.
+                        </p>
+                    </div>
+
+                    <div class="story-card story-dqn">
+                        <div class="story-card-head" style="color: #f87171;">
+                            <span>2. Thủ Thuật Xóa Dấu Vết (Anti-Forensics / Log Tampering)</span>
+                        </div>
+                        <p>
+                            <strong>a) Vô hiệu hóa cảnh báo tầng ứng dụng (Telemetry Suppression):</strong> Khi gói tin đi qua API trung gian bị chiếm quyền, mã độc sửa luôn trường phản hồi trạng thái <code>trang_thai_kiem_tra = "HỢP LỆ"</code> và gán chi phí hiển thị trên Dashboard bằng đúng chi phí cơ sở M0 (1.550 đv tiền), trong khi lệnh điều xe thực tế dưới kho phải chạy lộ trình xa tốn 2.985 đv tiền.
+                        </p>
+                        <p style="margin-top: 6px;">
+                            <strong>b) Xóa nhật ký sự cố (Audit Log Wiping):</strong> Lợi dụng quyền <code>DELETE / UPDATE</code> trên bảng nhật ký ứng dụng thông thường (<code>nhat_ky_tan_cong_ai</code>) khi cấu hình RLS chưa tách quyền ghi-đọc, kẻ tấn công thực thi lệnh xóa các dòng log bất thường ngay sau mỗi chu kỳ suy luận của DQN và giả mạo dấu thời gian (Timestomping).
+                        </p>
+                        <code class="formula-chip">App_Log_View = Clean (0 Alerts)  ≠  Physical_Warehouse_Ledger = Compromised</code>
+                    </div>
+
+                    <div class="story-card">
+                        <div class="story-card-head" style="color: #38bdf8;">
+                            <span>3. Kỹ Thuật Điều Tra &amp; Khôi Phục Dấu Vết (Digital Forensics)</span>
+                        </div>
+                        <p>
+                            <strong>a) Sổ cái chuỗi băm bất biến (SHA-256 Cryptographic Hash-Chain &amp; WORM):</strong> Quản trị viên ATTT thiết lập luồng ghi nhật ký song song sang phân vùng Chỉ-Đọc (Write-Once-Read-Many), trong đó mã băm của bản ghi thứ <em>k</em> phụ thuộc vào bản ghi thứ <em>k-1</em>:
+                        </p>
+                        <code class="formula-chip">H_k = SHA256(H_{k-1} || Step_k || s_obs_k || Action_k || Timestamp_k)</code>
+                        <p style="margin-top: 6px;">
+                            Chỉ cần kẻ tấn công xóa hoặc sửa 1 dòng trong bảng <code>nhat_ky_tan_cong_ai</code>, toàn bộ chuỗi mã băm từ bước đó trở đi bị đứt gãy (<code>HASH_CHAIN_BROKEN</code>), chỉ điểm chính xác bản ghi bị xóa để khôi phục từ bản sao WORM.
+                        </p>
+                        <p style="margin-top: 6px;">
+                            <strong>b) Kiểm định độ lệch phân phối Q-Value (KL-Divergence):</strong> Đo phân kỳ Kullback-Leibler giữa phân phối xác suất Softmax của nhánh Advantage hiện tại với đường cơ sở sạch để phát hiện nhiễu ẩn dưới ngưỡng 3σ.
+                        </p>
+                    </div>
+
+                    <div class="story-card story-defense">
+                        <div class="story-card-head" style="color: #34d399;">
+                            <span>4. Biện Pháp Phòng Ngừa &amp; Khắc Phục Triệt Để (Remediation)</span>
+                        </div>
+                        <p>
+                            <strong>1. Khóa quyền Xóa/Sửa bảng Nhật ký trên Supabase (Append-Only RLS Policy):</strong> Thu hồi hoàn toàn quyền <code>DELETE</code> và <code>UPDATE</code> của tài khoản ứng dụng/API trên bảng <code>nhat_ky_tan_cong_ai</code>; chỉ cấp quyền <code>INSERT</code> và chuyển tiếp log thời gian thực sang máy chủ SIEM độc lập.
+                        </p>
+                        <p style="margin-top: 6px;">
+                            <strong>2. Xác thực chữ ký số gói tin Bên thứ 3 (mTLS &amp; HMAC-SHA256 Payload Signing):</strong> Mọi dữ liệu từ cổng đối tác 3PL/IoT phải kèm chữ ký số đối chiếu chéo với cảm biến PLC vật lý tại kho (Out-of-Band Verification – Cấu hình M3).
+                        </p>
+                        <p style="margin-top: 6px;">
+                            <strong>3. Phòng thủ đa lớp cho mạng Dueling DQN (M2 + M3):</strong> Kết hợp Huấn luyện đối kháng (M2) với Rào chắn kiểm tra thực tế độc lập (M3) và giới hạn tốc độ dịch chuyển trạng thái (Temporal Rate-Limiting / Kalman Filter) để vô hiệu hóa hoàn toàn nhiễu Low-and-Slow.
+                        </p>
+                        <code class="formula-chip">RLS: REVOKE UPDATE, DELETE ON nhat_ky_tan_cong_ai  +  Defense(M2 ∧ M3)</code>
+                    </div>
                 </div>
             </div>
         </section>
