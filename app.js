@@ -509,11 +509,94 @@ function recomputeAllRealtime() {
 }
 
 /**
- * Thực thi đòn tấn công trực tiếp trên đơn hàng đang chọn khi bấm nút trong Live Hacker Console
+ * Cấu hình bộ nút thao tác tấn công RIÊNG BIỆT cho từng Kịch bản (1 -> 9)
+ * Khi chọn kịch bản nào thì chỉ hiển thị đúng các nút thao tác của kịch bản đó.
  */
-function applyLiveHackerAction(hackType) {
+const SCENARIO_SPECIFIC_ACTIONS = {
+    1: [
+        { id: 'flipOpen', label: '1. Lật Bit 6 Kho Đóng Bảo Trì (W7, W15, W23, W31, W42, W48) → Mở (O_obs = 1)' },
+        { id: 'poisonCost', label: '2. Hạ Cước Ảo Tới 6 Kho Đóng Để Dụ AI Điều Xe Vào' }
+    ],
+    2: [
+        { id: 'poisonCost', label: '1. Đảo Ngược Bảng Giá Cước TMS (Kho Xa >82 đv → 15 đv, Kho Gần ×2.8 Lần)' }
+    ],
+    3: [
+        { id: 'spoofCap', label: '1. Bơm +150 Tấn Tồn Kho Ảo Vào 10 Kho Sắp Cạn Hàng (Cap_real < D_j)' },
+        { id: 'poisonCost', label: '2. Giảm Nhẹ Cước Ảo Tại Kho Sắp Cạn Để Dồn Đơn Gây Tràn Kho (CV)' }
+    ],
+    4: [
+        { id: 'cutDemand', label: '1. Cắt Giảm 55% Khối Lượng Đặt Đơn Hàng Này (D_obs < D_real → Giao Thiếu Hàng)' },
+        { id: 'inflateDemand', label: '2. Thổi Phồng 185% Khối Lượng Đặt Đơn Hàng Này (D_obs > D_real → Giao Dư Lãng Phí)' }
+    ],
+    5: [
+        { id: 'spoofCap', label: '1. Giả Mạo Tồn Kho Ảo 240 Tấn Tại 5 Kho Hub Trung Tâm (W1, W10, W20, W30, W40)' },
+        { id: 'flipOpen', label: '2. Báo Đóng Cửa Ảo 5 Kho Hub Ép Luồng Hàng Dạt Ra 45 Kho Vệ Tinh' }
+    ],
+    6: [
+        { id: 'resetLmax', label: '1. Xóa Bộ Đếm Bến Xuất Hàng Về 0 (l_obs = 0 Khi Kho Đã Đầy Bến l_real ≥ l_max)' },
+        { id: 'poisonCost', label: '2. Hạ Cước Ảo Để Dồn Đoàn Xe Vượt Ngưỡng Cầu Cảng (Gây Vi Phạm LV)' }
+    ],
+    7: [
+        { id: 'jumpPhase1', label: '1. Xem Giai Đoạn 1: Trước Tấn Công (Bước 1–60 / Đơn U1..U30 – Dữ Liệu Sạch)' },
+        { id: 'jumpPhase2', label: '2. Xem Giai Đoạn 2: Đang Bị Tấn Công Chớp Nhoáng (Bước 61–80 / Đơn U31..U40)' },
+        { id: 'jumpPhase3', label: '3. Xem Giai Đoạn 3: Tin Tặc Rút Lui & AI Tự Phục Hồi (Bước 81–100 / Đơn U41..U50)' }
+    ],
+    8: [
+        { id: 'bypassMaskAll', label: '1. Tiêm Đồng Bộ Cả 3 Trường (O_obs=1 ∧ Cap_obs=D+120 ∧ l_obs=0) Để Vượt Action Mask Cấu Hình A' },
+        { id: 'switchConfigB', label: '2. Chuyển Sang Cấu Hình B (M3 – Bộ Kiểm Tra Độc Lập Trên Dữ Liệu Thực s_real)' }
+    ],
+    9: [
+        { id: 'runCleanModelA', label: '1. Chạy Model A (Huấn Luyện Với Hàm Phần Thưởng Chuẩn R_clean)' },
+        { id: 'runPoisonedModelB', label: '2. Chạy Model B (Huấn Luyện Với Hàm Phần Thưởng Bị Đầu Độc Đảo Dấu +Cost)' }
+    ]
+};
+
+window.applyLiveHackerAction = function (hackType) {
+    stopAllTimers();
     const custIdx = selectedOrderStep - 1;
-    // Nếu đang ở M0 (Bước 1), tự động chuyển sang chế độ bị tấn công (Bước 2 / M1) để thấy hiệu ứng ngay!
+
+    if (hackType === 'jumpPhase1') {
+        selectedOrderStep = 15;
+        showAllRoutesOnMap = false;
+        document.getElementById('slider-step').value = selectedOrderStep;
+        updateStepView(selectedOrderStep, true);
+        showToast('Kịch bản 7 – Giai đoạn 1 (Bước 1–60 / Đơn U15): Chưa có nhiễu, AI hoạt động tối ưu 100%.');
+        return;
+    }
+    if (hackType === 'jumpPhase2') {
+        currentModelMode = 'M1';
+        currentWorkflowStep = 3;
+        selectedOrderStep = 34;
+        showAllRoutesOnMap = false;
+        document.getElementById('slider-step').value = selectedOrderStep;
+        updateCurrentSimulation(true);
+        showToast('Kịch bản 7 – Giai đoạn 2 (Bước 61–80 / Đơn U34): Nhiễu chớp nhoáng kích hoạt làm sụp đổ quyết định AI!');
+        return;
+    }
+    if (hackType === 'jumpPhase3') {
+        selectedOrderStep = 43;
+        showAllRoutesOnMap = false;
+        document.getElementById('slider-step').value = selectedOrderStep;
+        updateStepView(selectedOrderStep, true);
+        showToast('Kịch bản 7 – Giai đoạn 3 (Bước 81–100 / Đơn U43): Tin tặc đã rút lui, mạng DQN đang tự phục hồi (RT).');
+        return;
+    }
+    if (hackType === 'switchConfigB') {
+        activateWorkflowStep(5);
+        showToast('Kịch bản 8 – Đã kích hoạt Cấu hình B (M3): Bộ kiểm tra độc lập trên s_real chặn đứng 100% lệnh vượt mặt nạ!');
+        return;
+    }
+    if (hackType === 'runCleanModelA') {
+        activateWorkflowStep(1);
+        showToast('Kịch bản 9 – Đang chạy Model A (Hàm thưởng sạch): TAC = 1.550, Evaluation Reward = +13,45.');
+        return;
+    }
+    if (hackType === 'runPoisonedModelB') {
+        activateWorkflowStep(3);
+        showToast('Kịch bản 9 – Đang chạy Model B (Hàm thưởng bị đầu độc): Training Reward ảo = +19,45 nhưng TAC thực vọt lên 5.105!');
+        return;
+    }
+
     if (currentModelMode === 'M0') {
         currentWorkflowStep = 2;
         currentModelMode = 'M1';
@@ -528,39 +611,70 @@ function applyLiveHackerAction(hackType) {
     } else if (hackType === 'spoofCap') {
         current.spoofCap = !current.spoofCap;
     } else if (hackType === 'cutDemand') {
-        current.alterDemandFactor = current.alterDemandFactor === 0.4 ? null : 0.4;
+        current.alterDemandFactor = current.alterDemandFactor === 0.45 ? null : 0.45;
     } else if (hackType === 'inflateDemand') {
-        current.alterDemandFactor = current.alterDemandFactor === 1.9 ? null : 1.9;
+        current.alterDemandFactor = current.alterDemandFactor === 1.85 ? null : 1.85;
     } else if (hackType === 'resetLmax') {
         current.resetLmax = !current.resetLmax;
+    } else if (hackType === 'bypassMaskAll') {
+        const nextState = !(current.flipOpen && current.spoofCap && current.resetLmax);
+        current.flipOpen = nextState;
+        current.spoofCap = nextState;
+        current.resetLmax = nextState;
+        current.poisonCost = nextState;
     }
 
     manualOverridesState[custIdx] = current;
     rebuildEngineFromControls();
     updateCurrentSimulation(true);
-    showToast(`Đã bơm nhiễu trực tiếp vào Đơn hàng #${selectedOrderStep} (U${selectedOrderStep})! Điểm Q và tuyến đường đã cập nhật!`);
-}
+    showToast(`Đã thực thi thao tác của Kịch bản ${currentScenarioId} trên Đơn hàng #${selectedOrderStep} (U${selectedOrderStep})!`);
+};
+
+window.resetScenarioLiveOverrides = function () {
+    stopAllTimers();
+    manualOverridesState = {};
+    rebuildEngineFromControls();
+    updateCurrentSimulation(true);
+    showToast(`Đã khôi phục dữ liệu mặc định của Kịch bản ${currentScenarioId}.`);
+};
 
 function syncHackerActionButtons() {
     const custIdx = selectedOrderStep - 1;
     const current = manualOverridesState[custIdx] || {};
-    const labelEl = document.getElementById('hack-target-order-label');
-    if (labelEl && engine) {
+    const titleEl = document.getElementById('hacker-console-scenario-title');
+    const barEl = document.getElementById('hacker-actions-bar');
+    const meta = SCENARIO_METADATA[currentScenarioId];
+
+    if (titleEl && engine && meta) {
         const cust = engine.customers[custIdx];
-        labelEl.textContent = `Đơn hàng #${selectedOrderStep} - ${cust.code} (${cust.initialDemand} tấn)`;
+        titleEl.innerHTML = `THAO TÁC RIÊNG CỦA ${meta.code.toUpperCase()} (${meta.member.toUpperCase()}) TRÊN ĐƠN #${selectedOrderStep} – ${cust.code} (${cust.initialDemand} TẤN):`;
     }
 
-    document.querySelectorAll('.btn-hack-action').forEach(btn => {
-        const type = btn.getAttribute('data-hack');
-        let isActive = false;
-        if (type === 'flipOpen') isActive = Boolean(current.flipOpen);
-        else if (type === 'poisonCost') isActive = Boolean(current.poisonCost);
-        else if (type === 'spoofCap') isActive = Boolean(current.spoofCap);
-        else if (type === 'cutDemand') isActive = current.alterDemandFactor === 0.4;
-        else if (type === 'inflateDemand') isActive = current.alterDemandFactor === 1.9;
-        else if (type === 'resetLmax') isActive = Boolean(current.resetLmax);
-        btn.classList.toggle('active', isActive);
-    });
+    if (!barEl) return;
+    const actions = SCENARIO_SPECIFIC_ACTIONS[currentScenarioId] || SCENARIO_SPECIFIC_ACTIONS[1];
+
+    barEl.innerHTML =
+        actions
+            .map(act => {
+                let isActive = false;
+                if (act.id === 'flipOpen') isActive = Boolean(current.flipOpen);
+                else if (act.id === 'poisonCost') isActive = Boolean(current.poisonCost);
+                else if (act.id === 'spoofCap') isActive = Boolean(current.spoofCap);
+                else if (act.id === 'cutDemand') isActive = current.alterDemandFactor === 0.45;
+                else if (act.id === 'inflateDemand') isActive = current.alterDemandFactor === 1.85;
+                else if (act.id === 'resetLmax') isActive = Boolean(current.resetLmax);
+                else if (act.id === 'bypassMaskAll')
+                    isActive = Boolean(current.flipOpen && current.spoofCap && current.resetLmax);
+                else if (act.id === 'jumpPhase1') isActive = selectedOrderStep <= 30;
+                else if (act.id === 'jumpPhase2') isActive = selectedOrderStep >= 31 && selectedOrderStep <= 40;
+                else if (act.id === 'jumpPhase3') isActive = selectedOrderStep >= 41;
+                else if (act.id === 'runCleanModelA') isActive = currentModelMode === 'M0';
+                else if (act.id === 'runPoisonedModelB') isActive = currentModelMode === 'M1';
+
+                return `<button class="btn-hack-action ${isActive ? 'active' : ''}" onclick="window.applyLiveHackerAction('${act.id}')">${act.label}</button>`;
+            })
+            .join('') +
+        `<button class="btn-hack-reset" onclick="window.resetScenarioLiveOverrides()">Khôi Phục Mặc Định KB${currentScenarioId}</button>`;
 }
 
 function handleCanvasMapClick(event) {
@@ -707,6 +821,7 @@ function updateCurrentSimulation(withFlash = false) {
     renderScenarioSpecificComparisonTable(currentScenarioId, currentModelMode);
     renderStepLogTable(currentSimResult.stepLogs);
     updateStepView(selectedOrderStep, withFlash);
+    renderAllScenarioReportCards();
     syncAndRenderSupabasePortal();
 
     if (withFlash) {
@@ -785,35 +900,134 @@ function updateStepView(stepNumber, withFlash = false) {
         document.getElementById('packet-tamper-summary').textContent = `↳ Trường bị sửa: ${exp.tamperedField} — ${exp.packetTamperDetail}`;
     }
 
+    const qThead = document.getElementById('top-candidates-q-thead');
     const qTbody = document.getElementById('top-candidates-q-tbody');
     const candidates = log.explain.topCandidates;
+
+    const scenarioColHeaders = {
+        1: ['Kho ứng viên', 'Trạng thái Thực → Quan sát (O_i)', 'Cước Thực → Mồi nhử', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB1)'],
+        2: ['Kho ứng viên', 'Cước Thực → Bị Đầu Độc (C_ij)', 'Chênh lệch Cước phí', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB2)'],
+        3: ['Kho ứng viên', 'Tồn kho Thực → Ảo (Cap_i)', 'So với Nhu cầu D_j', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB3)'],
+        4: ['Kho ứng viên', 'Nhu cầu Thực → Giả (D_j)', 'Lượng hàng Xuất kho', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB4)'],
+        5: ['Kho ứng viên', 'Loại kho (5 Hub / 45 Vệ tinh)', 'Tồn kho & Trạng thái Hub', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB5)'],
+        6: ['Kho ứng viên', 'Giới hạn Bến (l_real / l_max)', 'Bộ đếm Quan sát (l_obs)', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB6)'],
+        7: ['Kho ứng viên', 'Giai đoạn Thời gian (Bước t)', 'Biến số bị nhiễu tạm thời', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB7)'],
+        8: ['Kho ứng viên', '3 Điều kiện Thực (O ∧ Cap ∧ l)', 'Bộ lọc Mask_A vs Mask_B', 'Điểm Q Sạch', 'Điểm Q Hiện Tại', 'Quyết định (KB8)'],
+        9: ['Kho ứng viên', 'Chi phí Tuyến & Tồn kho', 'Tín hiệu Thưởng (Model A vs B)', 'Điểm Q Model A', 'Điểm Q Model B', 'Quyết định (KB9)']
+    };
+    const activeHeaders = scenarioColHeaders[currentScenarioId] || scenarioColHeaders[1];
+    if (qThead) {
+        qThead.innerHTML = `<tr>${activeHeaders.map(h => `<th>${h}</th>`).join('')}</tr>`;
+    }
+
     qTbody.innerHTML = candidates
         .map(c => {
             const costChanged = c.realCost !== c.obsCost;
             const capChanged = c.realCap !== c.obsCap;
             const openChanged = c.realOpen !== c.obsOpen;
+            const wObj = engine.warehouses.find(w => w.code === c.code) || {};
 
-            const costStr = costChanged
-                ? `${c.realCost} → <strong class="text-danger">${c.obsCost} (Giả)</strong>`
-                : `${c.realCost} đv`;
-            const capStr = capChanged
-                ? `${c.realCap} → <strong class="text-danger">${c.obsCap} tấn</strong>`
-                : openChanged
-                ? `Đóng(0) → <strong class="text-danger">Mở(1)</strong>`
-                : `${c.realCap} tấn (${c.realOpen ? 'Mở' : 'Đóng'})`;
+            let col2Str = '';
+            let col3Str = '';
+
+            if (currentScenarioId === 1) {
+                col2Str = openChanged
+                    ? `Đóng(0) → <strong class="text-danger">Giả Mở(1)</strong>`
+                    : c.realOpen
+                    ? 'Đang mở (O_i = 1)'
+                    : 'Đang đóng (O_i = 0)';
+                col3Str = costChanged
+                    ? `${c.realCost} → <strong class="text-danger">${c.obsCost} đv</strong>`
+                    : `${c.realCost} đv`;
+            } else if (currentScenarioId === 2) {
+                col2Str = costChanged
+                    ? `${c.realCost} → <strong class="text-danger">${c.obsCost} đv</strong>`
+                    : `${c.realCost} đv`;
+                const diff = c.obsCost - c.realCost;
+                col3Str =
+                    diff < 0
+                        ? `<span class="text-danger">Hạ giá ảo ${diff} đv (Bẫy kho xa)</span>`
+                        : diff > 0
+                        ? `<span class="text-warning">Thổi giá +${diff} đv (Né kho gần)</span>`
+                        : 'Không đổi';
+            } else if (currentScenarioId === 3) {
+                col2Str = capChanged
+                    ? `${c.realCap}t → <strong class="text-danger">${c.obsCap}t (Ảo)</strong>`
+                    : `${c.realCap} tấn`;
+                col3Str =
+                    c.realCap < log.realDemand
+                        ? `<span class="text-danger">Thiếu hàng (Cap &lt; ${log.realDemand}t)</span>`
+                        : `<span class="text-success">Đủ hàng (≥ ${log.realDemand}t)</span>`;
+            } else if (currentScenarioId === 4) {
+                col2Str =
+                    log.realDemand !== log.observedDemand
+                        ? `${log.realDemand}t → <strong class="text-danger">${log.observedDemand}t</strong>`
+                        : `${log.realDemand} tấn`;
+                const alloc = Math.min(c.realCap, log.observedDemand);
+                col3Str =
+                    alloc < log.realDemand
+                        ? `<span class="text-danger">Giao ${alloc}t (Thiếu ${log.realDemand - alloc}t)</span>`
+                        : alloc > log.realDemand
+                        ? `<span class="text-warning">Điều xe ${alloc}t (Dư ${alloc - log.realDemand}t)</span>`
+                        : `Giao chuẩn ${log.realDemand}t`;
+            } else if (currentScenarioId === 5) {
+                col2Str = wObj.isStrategic
+                    ? '<strong class="text-warning">Kho Hub Chiến Lược</strong>'
+                    : 'Kho Vệ Tinh Vùng Biên';
+                col3Str = capChanged
+                    ? `Thực ${c.realCap}t → <strong class="text-danger">Ảo ${c.obsCap}t</strong>`
+                    : openChanged
+                    ? `Mở(1) → <strong class="text-danger">Báo Đóng(0)</strong>`
+                    : `Tồn ${c.realCap}t, Cước ${c.realCost}`;
+            } else if (currentScenarioId === 6) {
+                const lmax = wObj.lmax || 2;
+                const isFullDock = !c.realValid && c.realOpen && c.realCap >= log.realDemand;
+                col2Str = isFullDock
+                    ? `<strong class="text-danger">Đã kín bến (l_real = ${lmax}/${lmax})</strong>`
+                    : `Còn bến trống (&lt; ${lmax} xe)`;
+                col3Str = isFullDock
+                    ? `<strong class="text-danger">Reset l_obs = 0 (Giả trống)</strong>`
+                    : `l_obs hợp lệ`;
+            } else if (currentScenarioId === 7) {
+                const phaseStr =
+                    log.step <= 30
+                        ? 'GĐ 1: Trước tấn công (Sạch)'
+                        : log.step <= 40
+                        ? '<strong class="text-danger">GĐ 2: Cửa sổ Tấn công (61–80)</strong>'
+                        : '<strong class="text-warning">GĐ 3: Hậu tấn công (Phục hồi)</strong>';
+                col2Str = phaseStr;
+                col3Str = openChanged
+                    ? `Đóng(0) → Mở(1)`
+                    : capChanged
+                    ? `${c.realCap}t → ${c.obsCap}t`
+                    : `Cước ${c.realCost} đv, Tồn ${c.realCap}t`;
+            } else if (currentScenarioId === 8) {
+                col2Str = c.realValid
+                    ? '<span class="text-success">Thỏa mãn cả 3 điều kiện</span>'
+                    : '<strong class="text-danger">Vi phạm thực tế (Invalid)</strong>';
+                col3Str = !c.realValid
+                    ? `<span class="text-danger">Mask_A(s_obs)=Mở</span> / <span class="text-success">Mask_B(s_real)=Chặn</span>`
+                    : 'Cả 2 cấu hình đều Mở';
+            } else {
+                col2Str = `Cước ${c.realCost} đv • Tồn ${c.realCap}t`;
+                col3Str =
+                    c.realCap < log.realDemand || c.realCost > log.explain.cleanBestCost + 25
+                        ? '<strong class="text-danger">Model B thưởng cao (+Cost)</strong>'
+                        : '<span class="text-success">Model A thưởng cao (-Cost)</span>';
+            }
 
             let decisionTag = '<span class="text-muted">Ứng viên phụ</span>';
             if (c.isProposed && c.isFinal) {
                 decisionTag =
                     c.realValid && c.realCost <= log.explain.cleanBestCost + 8
-                        ? '<span class="status-pill status-ok">✓ AI CHỌN & THỰC THI CHUẨN</span>'
-                        : '<span class="status-pill status-err">💀 AI SẬP BẪY CHỌN NHẦM!</span>';
+                        ? '<span class="status-pill status-ok">AI CHỌN &amp; THỰC THI CHUẨN</span>'
+                        : '<span class="status-pill status-err">AI SẬP BẪY CHỌN NHẦM</span>';
             } else if (c.isProposed && !c.isFinal) {
-                decisionTag = '<span class="status-pill status-warn">🛡️ AI ĐỀ XUẤT NHƯNG BỊ M3 CHẶN!</span>';
+                decisionTag = '<span class="status-pill status-warn">AI ĐỀ XUẤT NHƯNG BỊ M3 CHẶN</span>';
             } else if (!c.isProposed && c.isFinal) {
-                decisionTag = '<span class="status-pill status-ok">🔒 M3 ĐIỀU HƯỚNG AN TOÀN TỚI ĐÂY</span>';
+                decisionTag = '<span class="status-pill status-ok">M3 ĐIỀU HƯỚNG AN TOÀN</span>';
             } else if (c.isCleanBest) {
-                decisionTag = '<span class="status-pill status-ok">★ KHO TỐI ƯU GỐC (BỊ BỎ QUA)</span>';
+                decisionTag = '<span class="status-pill status-ok">KHO TỐI ƯU GỐC (BỊ BỎ QUA)</span>';
             }
 
             const cleanBarW = Math.max(12, Math.min(100, Math.round((c.cleanQ + 5) * 4.5)));
@@ -822,8 +1036,8 @@ function updateStepView(stepNumber, withFlash = false) {
             return `
                 <tr>
                     <td><strong>${c.code}</strong> <span class="text-muted">(${c.name.replace('Kho Phân Phối ', '')})</span></td>
-                    <td>${costStr}</td>
-                    <td>${capStr}</td>
+                    <td>${col2Str}</td>
+                    <td>${col3Str}</td>
                     <td>
                         <strong>${c.cleanQ > 0 ? '+' : ''}${c.cleanQ.toFixed(2)}</strong>
                         <div class="q-bar-wrap"><div class="q-bar-fill" style="width:${cleanBarW}%; background:#38bdf8;"></div></div>
@@ -1015,30 +1229,109 @@ function drawNetworkCanvas() {
     });
 
     const currentLog = currentSimResult.stepLogs[selectedOrderStep - 1];
+
+    // Cập nhật Chú giải Bản đồ (Map Legend) RIÊNG BIỆT theo đúng Kịch bản đang chọn
+    const legendContainer = document.getElementById('map-legend-container');
+    if (legendContainer) {
+        const scenarioLegends = {
+            1: `
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> 44 Kho đang mở (O_real = 1)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444;"></span> 6 Kho đóng bảo trì bị giả mạo Mở (W7, W15, W23, W31, W42, W48)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #10b981; border-radius: 50%;"></span> Khách hàng giao đủ</div>
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444; border-radius: 50%;"></span> Đơn bị điều vào kho đóng cửa</div>
+            `,
+            2: `
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> Kho phân phối hợp lệ</div>
+                <div class="legend-item"><span class="legend-box" style="background: #22c55e;"></span> Kho ở gần (Bị thổi giá cước ×2.8 lần)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #f59e0b;"></span> Kho ở xa (Bị hạ cước giả còn 14–20 đv để bẫy AI)</div>
+            `,
+            3: `
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> 40 Kho đủ sức chứa (Cap ≥ 90t)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444;"></span> 10 Kho sắp cạn tồn kho (Cap=22..36t) bị bơm +150t ảo (W3, W8, W12, W18, W25, W28, W34, W38, W44, W49)</div>
+            `,
+            4: `
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> Kho xuất hàng</div>
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444; border-radius: 50%;"></span> Khách hàng đơn chẵn bị cắt giảm 55% nhu cầu (Giao thiếu hàng)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #f59e0b; border-radius: 50%;"></span> Khách hàng đơn lẻ bị thổi phồng 185% nhu cầu (Điều dư tải trọng)</div>
+            `,
+            5: `
+                <div class="legend-item"><span class="legend-box" style="background: #f59e0b;"></span> 5 Kho Hub Chiến Lược Trung Tâm bị tấn công (W1, W10, W20, W30, W40)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> 45 Kho Vệ Tinh Vùng Biên phải gánh tải dây chuyền</div>
+            `,
+            6: `
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> Kho còn bến bốc xếp trống (l_i &lt; l_max)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #a855f7;"></span> Kho giới hạn bến thấp (l_max = 1) bị xóa bộ đếm l_obs = 0 gây ùn tắc cầu cảng (LV)</div>
+            `,
+            7: `
+                <div class="legend-item"><span class="legend-box" style="background: #10b981; border-radius: 50%;"></span> Đơn GĐ 1 (U1..U30: Trước tấn công) &amp; GĐ 3 (U41..U50: Phục hồi RT)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444; border-radius: 50%;"></span> Đơn GĐ 2 (U31..U40 / Bước 61–80): Cửa sổ bị tấn công chớp nhoáng</div>
+            `,
+            8: `
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444;"></span> Kho bất hợp lệ được tiêm đồng bộ 3 điều kiện (O_obs=1, Cap_obs=D+120, l_obs=0) vượt Mask_A</div>
+                <div class="legend-item"><span class="legend-box" style="background: #22c55e;"></span> Kho hợp lệ được Bộ kiểm tra thực tế Cấu hình B (M3) điều hướng</div>
+            `,
+            9: `
+                <div class="legend-item"><span class="legend-box" style="background: #3b82f6;"></span> Kho chi phí thấp (Model A ưu tiên)</div>
+                <div class="legend-item"><span class="legend-box" style="background: #ef4444;"></span> Kho chi phí đắt / quá tải (Model B bị đầu độc phần thưởng +Cost ưu tiên chọn)</div>
+            `
+        };
+        legendContainer.innerHTML = scenarioLegends[currentScenarioId] || scenarioLegends[1];
+    }
+
     engine.warehouses.forEach(w => {
         const wx = toScreenX(w.x);
         const wy = toScreenY(w.y);
         const isSelectedWh =
             currentLog && (w.id === currentLog.warehouseIdx || w.id === currentLog.proposedWarehouseIdx);
-        const size = isSelectedWh ? 15 : w.isStrategic ? 12.5 : 8.5;
+
+        // Chỉ tô màu & gắn nhãn các kho đặc trưng của ĐÚNG Kịch bản đang chọn
+        let whColor = '#3b82f6';
+        let isScenarioFocusNode = false;
+
+        if (currentScenarioId === 1) {
+            if (w.openStatus === 0) {
+                whColor = '#ef4444';
+                isScenarioFocusNode = true;
+            }
+        } else if (currentScenarioId === 2) {
+            if (currentLog && w.id === currentLog.proposedWarehouseIdx) {
+                whColor = '#f59e0b';
+                isScenarioFocusNode = true;
+            }
+        } else if (currentScenarioId === 3) {
+            if (w.isLowCap) {
+                whColor = '#ef4444';
+                isScenarioFocusNode = true;
+            }
+        } else if (currentScenarioId === 5) {
+            if (w.isStrategic) {
+                whColor = '#f59e0b';
+                isScenarioFocusNode = true;
+            }
+        } else if (currentScenarioId === 6) {
+            if (w.lmax === 1) {
+                whColor = '#a855f7';
+                isScenarioFocusNode = true;
+            }
+        } else if (currentScenarioId === 8 || currentScenarioId === 9) {
+            if (w.openStatus === 0 || w.isLowCap) {
+                whColor = '#ef4444';
+                isScenarioFocusNode = true;
+            }
+        }
+
+        const size = isSelectedWh ? 15 : isScenarioFocusNode ? 12 : 8.5;
 
         ctx.save();
         ctx.beginPath();
         ctx.rect(wx - size / 2, wy - size / 2, size, size);
-
-        if (w.openStatus === 0) {
-            ctx.fillStyle = '#ef4444';
-        } else if (w.isStrategic) {
-            ctx.fillStyle = '#f59e0b';
-        } else {
-            ctx.fillStyle = '#3b82f6';
-        }
+        ctx.fillStyle = whColor;
         ctx.fill();
         ctx.strokeStyle = isSelectedWh ? '#ffffff' : '#e2e8f0';
-        ctx.lineWidth = isSelectedWh ? 2.6 : w.isStrategic ? 1.8 : 1;
+        ctx.lineWidth = isSelectedWh ? 2.6 : isScenarioFocusNode ? 1.8 : 1;
         ctx.stroke();
 
-        if (w.isStrategic || w.openStatus === 0 || isSelectedWh) {
+        if (isScenarioFocusNode || isSelectedWh) {
             ctx.fillStyle = isSelectedWh ? '#fde047' : '#e2e8f0';
             ctx.font = isSelectedWh ? 'bold 11.5px Inter, sans-serif' : 'bold 9.5px Inter, sans-serif';
             ctx.fillText(w.code, wx + 8, wy + 3);
@@ -1549,14 +1842,40 @@ function buildMemberScenarioTableHTML(scenarioId, activeMode = 'M1') {
     }
 }
 
+let showAllScenariosInTab3 = false;
+
 function renderAllScenarioReportCards() {
     const container = document.getElementById('all-scenarios-report-list');
     if (!container) return;
 
+    const headingEl = document.getElementById('tab3-focused-scenario-heading');
+    const toggleBtn = document.getElementById('btn-toggle-all-scenarios-view');
+    const curMeta = SCENARIO_METADATA[currentScenarioId];
+
+    if (headingEl && curMeta) {
+        headingEl.textContent = showAllScenariosInTab3
+            ? 'Hồ Sơ & Bảng Kết Quả Thực Nghiệm Của Toàn Bộ 9 Kịch Bản (Thành Viên 1 → 9)'
+            : `Hồ Sơ Chuyên Sâu Của ${curMeta.code} (${curMeta.member}): ${curMeta.title}`;
+    }
+    if (toggleBtn) {
+        toggleBtn.textContent = showAllScenariosInTab3
+            ? `Chỉ Xem Kịch Bản Đang Chọn (Kịch bản ${currentScenarioId})`
+            : 'Xem Tất Cả 9 Kịch Bản';
+        if (!toggleBtn.getAttribute('data-bound-toggle')) {
+            toggleBtn.setAttribute('data-bound-toggle', '1');
+            toggleBtn.addEventListener('click', () => {
+                showAllScenariosInTab3 = !showAllScenariosInTab3;
+                renderAllScenarioReportCards();
+            });
+        }
+    }
+
+    const scenariosToRender = showAllScenariosInTab3 ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [currentScenarioId];
+
     let html = '';
-    for (let s = 1; s <= 9; s++) {
+    for (const s of scenariosToRender) {
         const meta = SCENARIO_METADATA[s];
-        const tableHtml = buildMemberScenarioTableHTML(s, 'M1');
+        const tableHtml = buildMemberScenarioTableHTML(s, currentModelMode);
         const sData = allSummary.resultsByScenario[s];
         const m0 = sData.M0.metrics;
         const m1 = sData.M1.metrics;
@@ -1569,14 +1888,14 @@ function renderAllScenarioReportCards() {
                     <div>
                         <span class="badge-group">${meta.group} • ${meta.member}</span>
                         <h3>${meta.code}: ${meta.title}</h3>
-                        <p class="text-muted"><strong>Đối tượng bị tác động:</strong> ${meta.targetVector} • <strong>Công thức:</strong> <code>${meta.attackFormula}</code></p>
+                        <p class="text-muted"><strong>Thành phần Vector bị tác động:</strong> ${meta.targetVector} • <strong>Công thức:</strong> <code>${meta.attackFormula}</code></p>
                     </div>
                     <div class="scenario-card-actions">
                         <button class="btn-secondary btn-sm" onclick="jumpToScenarioSimulation(${s})">
                             Mở Mô Phỏng Kịch Bản ${s}
                         </button>
                         <button class="btn-primary btn-sm" onclick="copyScenarioTableMarkdown(${s})">
-                            Sao Chép Bảng &amp; Nhận Xét
+                            Sao Chép Bảng &amp; Nhận Xét Kịch Bản ${s}
                         </button>
                     </div>
                 </div>
@@ -1593,7 +1912,7 @@ function renderAllScenarioReportCards() {
                         <strong>${m0.TAC.toLocaleString('vi-VN')}</strong> lên <strong>${m1.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%)</strong>, 
                         tỷ lệ phân bổ không hợp lệ (IR) ở mức <strong>${m1.IR}%</strong> và nhu cầu chưa đáp ứng (UD) là <strong>${m1.UD.toLocaleString('vi-VN')} đơn vị</strong>. 
                         Khi áp dụng huấn luyện đối kháng (<strong>M2</strong>), chi phí giảm xuống còn <strong>${m2.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M2}%)</strong>. 
-                        Đặc biệt, khi kết hợp Action Masking với Bộ kiểm tra ràng buộc độc lập trên dữ liệu thực tế (<strong>M3</strong>), 100% hành vi vi phạm ràng buộc cứng (CV = 0, LV = 0) bị chặn đứng.
+                        Khi kết hợp Action Masking với Bộ kiểm tra ràng buộc độc lập trên dữ liệu thực tế (<strong>M3</strong>), 100% hành vi vi phạm ràng buộc cứng (CV = 0, LV = 0) bị chặn đứng.
                     </div>
                 </div>
             </div>
@@ -3919,41 +4238,202 @@ function renderInteractiveIOWorkbench() {
     const exp = currentModelMode === 'M0' ? m0Log.explain : m1Log.explain;
     const bestCleanCand = exp.topCandidates.find(c => c.isCleanBest) || exp.topCandidates[0];
     const proposedCand = exp.topCandidates.find(c => c.isProposed) || exp.topCandidates[0];
-
-    // 1. KHỐI 1: DỮ LIỆU ĐẦU VÀO GỐC (CLEAN INPUT S_REAL)
-    cleanBox.innerHTML = `
-        <div class="io-row"><span class="io-key">Đơn hàng đang xử lý (Bước t=${curLog.step}/50):</span><span class="io-val-clean">${curLog.customerCode} – ${curLog.customerName}</span></div>
-        <div class="io-row"><span class="io-key">Chiều [1..50] Tồn kho thực Cap_real[${bestCleanCand.code}]:</span><span class="io-val-clean">${bestCleanCand.realCap} tấn (Đủ đáp ứng)</span></div>
-        <div class="io-row"><span class="io-key">Chiều [51..100] Trạng thái kho O_real:</span><span class="io-val-clean">44 kho Mở (1) • 6 kho Đóng bảo trì (0)</span></div>
-        <div class="io-row"><span class="io-key">Chiều [101..2600] Cước chuẩn C_real[${bestCleanCand.code}][${curLog.customerCode}]:</span><span class="io-val-clean">${bestCleanCand.realCost} đv tiền (Kho tối ưu: ${m0Log.finalWarehouse})</span></div>
-        <div class="io-row"><span class="io-key">Chiều [2601..2750] Nhu cầu D_real[${curLog.customerCode}] &amp; Bến l_i:</span><span class="io-val-clean">D_real = ${curLog.realDemand} tấn • l_real &lt; l_max</span></div>
-    `;
-
-    // 2. KHỐI 3: BIẾN ĐỔI ĐẦU VÀO & XỬ LÝ CỦA MẠNG DUELING DQN
     const isCleanMode = currentModelMode === 'M0';
-    dqnBox.innerHTML = `
-        <div class="io-row"><span class="io-key">Trường Vector bị tiêm lệnh:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'Không có (Vector sạch 100%)' : m1Log.explain.tamperedField}</span></div>
-        <div class="io-row"><span class="io-key">Giá trị Đầu vào Thực (s_real) → Sau tiêm (s_adv):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? m0Log.explain.realValStr : `${m1Log.explain.realValStr}  ➔  ${m1Log.explain.spoofedValStr}`}</span></div>
-        <div class="io-row"><span class="io-key">Nhánh Giá trị Trạng thái V(s; θ):</span><span class="io-val-clean">V(s_obs) = ${curLog.vValue > 0 ? '+' : ''}${curLog.vValue}</span></div>
-        <div class="io-row"><span class="io-key">Điểm Q tại Kho chuẩn (${m0Log.finalWarehouse}):</span><span class="io-val-clean">Q_sạch = +${bestCleanCand.cleanQ.toFixed(2)}  ➔  Q_hiện_tại = ${bestCleanCand.attackQ > 0 ? '+' : ''}${bestCleanCand.attackQ.toFixed(2)}</span></div>
-        <div class="io-row"><span class="io-key">Điểm Q tại Kho AI chọn (${curLog.proposedWarehouse}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Q(${curLog.proposedWarehouse}) = ${curLog.qValue > 0 ? '+' : ''}${curLog.qValue.toFixed(2)} (argmax Q chọn ${curLog.proposedWarehouse})</span></div>
-    `;
-
-    // 3. KHỐI 4: DỮ LIỆU ĐẦU RA (OUTPUT) & KẾT QUẢ PHÒNG THỦ
     const m = currentSimResult.metrics;
     const b = m0Res.metrics;
+    const sData = allSummary.resultsByScenario[currentScenarioId];
+    const m1Metrics = sData.M1.metrics;
+    const m2Metrics = sData.M2.metrics;
+    const m3Metrics = sData.M3.metrics;
     const deltaTAC = (((m.TAC - b.TAC) / Math.max(1, b.TAC)) * 100).toFixed(1);
-    const logStatusText = isTab1LogWipedByTerminal
-        ? '<span class="io-val-attack">ĐÃ BỊ LỆNH WIPE XÓA (0 Bản ghi cảnh báo)</span>'
-        : `<span class="io-val-def">Ghi nhận ${supabaseService ? supabaseService.tables.nhat_ky_tan_cong_ai.length : 32} bản ghi sự cố</span>`;
 
-    outBox.innerHTML = `
-        <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}) – Kho đề xuất / Thực thi:</span><span class="${curLog.status === 'HỢP LỆ' ? 'io-val-def' : 'io-val-attack'}">Đề xuất: ${curLog.proposedWarehouse} ➔ Thực thi: ${curLog.finalWarehouse} (${curLog.status})</span></div>
-        <div class="io-row"><span class="io-key">Chi phí Đơn #${curLog.step} &amp; Hàng đứt gãy (UD):</span><span class="${curLog.unserved > 0 || curLog.realCost > m0Log.realCost + 8 ? 'io-val-attack' : 'io-val-def'}">Cước thực = ${curLog.realCost} đv (Chuẩn M0: ${m0Log.realCost}) • Thiếu hàng UD = ${curLog.unserved} tấn</span></div>
-        <div class="io-row"><span class="io-key">Đầu ra Toàn Ca (50 Đơn) – Tổng chi phí TAC:</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}% so với M0 = 1.550)</span></div>
-        <div class="io-row"><span class="io-key">Đầu ra Toàn Ca – Đứt gãy (UD) &amp; Vi phạm (CV / LV / IR):</span><span class="${m.UD > 0 || m.CV > 0 || m.LV > 0 ? 'io-val-attack' : 'io-val-def'}">UD = ${m.UD} tấn (DFR ${m.DFR}%) • CV = ${m.CV} • LV = ${m.LV} • IR = ${currentModelMode === 'M3' ? 0 : m.IR}%</span></div>
-        <div class="io-row"><span class="io-key">Trạng thái Bảng Nhật ký (nhat_ky_tan_cong_ai):</span>${logStatusText}</div>
-    `;
+    // HIỂN THỊ RIÊNG BIỆT 100% DỮ LIỆU ĐẦU VÀO (KHỐI 1), BIẾN ĐỔI DQN (KHỐI 3) VÀ ĐẦU RA (KHỐI 4) THEO ĐÚNG KỊCH BẢN ĐANG CHỌN (1 -> 9)
+    let cleanInputHtml = '';
+    let dqnTransformHtml = '';
+    let outputHtml = '';
+
+    if (currentScenarioId === 1) {
+        // KỊCH BẢN 1: CHỈ TẬP TRUNG VÀO VECTOR TRẠNG THÁI ĐÓNG/MỞ KHO O = [O_1..O_50]
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 1 – Nguồn dữ liệu đầu vào:</span><span class="io-val-clean">Tín hiệu Heartbeat đóng/mở kho từ hệ thống WMS</span></div>
+            <div class="io-row"><span class="io-key">Vị trí trong Vector trạng thái (2.750 chiều):</span><span class="io-val-clean">Chiều [51..100] – Vector nhị phân Open Status O = [O₁..O₅₀] ∈ {0, 1}</span></div>
+            <div class="io-row"><span class="io-key">Trạng thái thực 6 kho bảo trì (W7, W15, W23, W31, W42, W48):</span><span class="io-val-clean">O_real = 0 (Đang đóng cửa bảo trì – Cấm xuất hàng)</span></div>
+            <div class="io-row"><span class="io-key">Trạng thái thực 44 kho hoạt động (VD: ${m0Log.finalWarehouse}):</span><span class="io-val-clean">O_real[${m0Log.finalWarehouse}] = 1 (Đang mở • Cước thực = ${m0Log.realCost} đv)</span></div>
+            <div class="io-row"><span class="io-key">Đơn hàng đang xét (#${curLog.step} – ${curLog.customerCode}):</span><span class="io-val-clean">Khối lượng cần giao D_real = ${curLog.realDemand} tấn</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Phép biến đổi trên Vector Open Status [51..100]:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'Giữ nguyên O_obs = O_real = 0 tại 6 kho đóng' : 'Đảo bit O_obs = 1 - O_real (6 kho đóng bảo trì bị báo thành Mở = 1)'}</span></div>
+            <div class="io-row"><span class="io-key">Dữ liệu tại kho mục tiêu (${m1Log.proposedWarehouse}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'O_obs = 0 (Bị khóa)' : `${m1Log.explain.realValStr} ➔ ${m1Log.explain.spoofedValStr}`}</span></div>
+            <div class="io-row"><span class="io-key">Tác động lên Bộ lọc Action Masking quan sát:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'Chặn 6 kho đóng' : `Mở khóa trái phép kho đóng ${m1Log.proposedWarehouse} vào tập A_valid`}</span></div>
+            <div class="io-row"><span class="io-key">Điểm Q(s,a) tại Kho chuẩn (${m0Log.finalWarehouse}) vs Kho đóng (${m1Log.proposedWarehouse}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Q(${m0Log.finalWarehouse}) = +${bestCleanCand.cleanQ.toFixed(2)} vs Q_adv(${m1Log.proposedWarehouse}) = +${m1Log.qValue.toFixed(2)}</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${curLog.status === 'HỢP LỆ' ? 'io-val-def' : 'io-val-attack'}">AI đề xuất: ${curLog.proposedWarehouse} ➔ Thực thi: ${curLog.finalWarehouse} (${curLog.status})</span></div>
+            <div class="io-row"><span class="io-key">Số lần AI điều xe vào kho đang đóng (Toàn ca 50 đơn):</span><span class="${m.closedSelections > 0 && currentModelMode !== 'M3' ? 'io-val-attack' : 'io-val-def'}">${currentModelMode === 'M3' ? '0 lần (M3 chặn 100% tại thanh ghi PLC kho)' : `${m.closedSelections} / 50 đơn hàng`}</span></div>
+            <div class="io-row"><span class="io-key">Tỷ lệ phân bổ không hợp lệ (IR) &amp; Hàng đứt gãy (UD):</span><span class="${m.UD > 0 ? 'io-val-attack' : 'io-val-def'}">IR = ${currentModelMode === 'M3' ? 0 : m.IR}% • Đứt gãy UD = ${m.UD} tấn (DFR = ${m.DFR}%)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí phân bổ (TAC – Kịch bản 1):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}% so với M0 = 1.550)</span></div>
+        `;
+    } else if (currentScenarioId === 2) {
+        // KỊCH BẢN 2: CHỈ TẬP TRUNG VÀO MA TRẬN CHI PHÍ VẬN CHUYỂN C_50x50
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 2 – Nguồn dữ liệu đầu vào:</span><span class="io-val-clean">Bảng giá cước vận tải từ hệ thống TMS (GPS &amp; nhiên liệu)</span></div>
+            <div class="io-row"><span class="io-key">Vị trí trong Vector trạng thái (2.750 chiều):</span><span class="io-val-clean">Chiều [101..2600] – Ma trận chi phí C = [c_ij]₅₀ₓ₅₀ (2.500 tuyến đường)</span></div>
+            <div class="io-row"><span class="io-key">Cước thực tế tại Kho gần tối ưu (${m0Log.finalWarehouse} → ${curLog.customerCode}):</span><span class="io-val-clean">C_real[${m0Log.finalWarehouse}][${curLog.customerCode}] = ${m0Log.realCost} đv tiền (Quãng đường ngắn nhất)</span></div>
+            <div class="io-row"><span class="io-key">Cước thực tế tại Kho ở xa (${m1Log.proposedWarehouse} → ${curLog.customerCode}):</span><span class="io-val-clean">C_real[${m1Log.proposedWarehouse}][${curLog.customerCode}] = ${m1Log.realCost} đv tiền (Tuyến đường xa xuyên vùng)</span></div>
+            <div class="io-row"><span class="io-key">Ràng buộc vật lý (Open, Capacity, l_max):</span><span class="io-val-clean">Tất cả kho được chọn đều Hợp lệ vật lý (Không vi phạm cứng)</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Nhiễu FGSM tiêm vào Ma trận chi phí [101..2600]:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'C_obs = C_real (Không nhiễu)' : 'Hạ cước ảo kho xa (>82 xuống 14..20) & Thổi cước kho gần (×2.8 lần)'}</span></div>
+            <div class="io-row"><span class="io-key">Biến đổi Cước trên Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? `C_obs[${m0Log.finalWarehouse}] = ${m0Log.realCost} đv` : `${m1Log.explain.realValStr} ➔ ${m1Log.explain.spoofedValStr}`}</span></div>
+            <div class="io-row"><span class="io-key">Đảo chiều Nhánh Lợi thế Advantage A(s, a; θ):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? `A(s, ${m0Log.finalWarehouse}) cao nhất` : `A(s_adv, ${m1Log.proposedWarehouse}_xa) >> A(s_adv, ${m0Log.finalWarehouse}_gần)`}</span></div>
+            <div class="io-row"><span class="io-key">Quyết định argmax Q(s,a):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Chọn kho ${curLog.finalWarehouse} (Q = +${curLog.qValue.toFixed(2)})</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} – Chi phí vận chuyển thực tế:</span><span class="${curLog.realCost > m0Log.realCost + 8 ? 'io-val-attack' : 'io-val-def'}">Kho xuất: ${curLog.finalWarehouse} • Cước thực = ${curLog.realCost} đv (Chuẩn M0: ${m0Log.realCost} đv)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí phân bổ Toàn Ca (TAC – Kịch bản 2):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}% so với M0 = 1.550)</span></div>
+            <div class="io-row"><span class="io-key">Chi phí vận chuyển trung bình mỗi đơn (ATC):</span><span class="${m.ATC > b.ATC * 1.05 ? 'io-val-attack' : 'io-val-def'}">ATC = ${m.ATC} đv/đơn (M0: 31 đv/đơn • M1: ${m1Metrics.ATC} • M2: ${m2Metrics.ATC})</span></div>
+            <div class="io-row"><span class="io-key">Vi phạm ràng buộc vật lý (CV / LV / UD):</span><span class="io-val-def">CV = 0 • LV = 0 • UD = 0 (Tấn công rút ruột chi phí ngầm, chỉ M2 chống được!)</span></div>
+        `;
+    } else if (currentScenarioId === 3) {
+        // KỊCH BẢN 3: CHỈ TẬP TRUNG VÀO VECTOR SỨC CHỨA TỒN KHO CAPACITY = [Cap_1..Cap_50]
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 3 – Nguồn dữ liệu đầu vào:</span><span class="io-val-clean">Số liệu kiểm kê tồn kho thời gian thực từ CSDL WMS</span></div>
+            <div class="io-row"><span class="io-key">Vị trí trong Vector trạng thái (2.750 chiều):</span><span class="io-val-clean">Chiều [1..50] – Vector sức chứa khả dụng Cap = [Cap₁..Cap₅₀]</span></div>
+            <div class="io-row"><span class="io-key">Tồn kho thực tại 10 kho sắp cạn (W3, W8, W12, W18, W25...):</span><span class="io-val-clean">Cap_real = 22..36 tấn (Nhỏ hơn nhu cầu đơn hàng D_j = ${curLog.realDemand} tấn)</span></div>
+            <div class="io-row"><span class="io-key">Tồn kho thực tại Kho chuẩn (${m0Log.finalWarehouse}):</span><span class="io-val-clean">Cap_real[${m0Log.finalWarehouse}] = ${bestCleanCand.realCap} tấn (≥ D_j = ${curLog.realDemand} tấn)</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Phép bơm tồn kho ảo trên Vector Capacity [1..50]:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'Cap_obs = Cap_real' : 'Cap_obs[i] = Cap_real[i] + 150 tấn ảo tại các kho sắp cạn'}</span></div>
+            <div class="io-row"><span class="io-key">Biến đổi Tồn kho tại kho bẫy (${m1Log.proposedWarehouse}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? `Cap_real = ${proposedCand.realCap}t` : `${m1Log.explain.realValStr} ➔ ${m1Log.explain.spoofedValStr}`}</span></div>
+            <div class="io-row"><span class="io-key">Đánh lừa điều kiện sức chứa (Cap_obs ≥ D_j):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'Kho sắp cạn bị loại bỏ' : `AI tưởng kho ${m1Log.proposedWarehouse} còn dư hàng nên gán đơn ${curLog.realDemand} tấn vào`}</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${curLog.unserved > 0 ? 'io-val-attack' : 'io-val-def'}">Kho thực thi: ${curLog.finalWarehouse} • Thiếu hàng UD = ${curLog.unserved} tấn (${curLog.status})</span></div>
+            <div class="io-row"><span class="io-key">Số lần vi phạm vượt sức chứa kho (CV – Kịch bản 3):</span><span class="${m.CV > 0 ? 'io-val-attack' : 'io-val-def'}">CV = ${currentModelMode === 'M3' ? '0 lần (Đã khóa bởi M3)' : `${m.CV} lần tràn kho`} (M1: ${m1Metrics.CV} lần • M2: ${m2Metrics.CV} lần)</span></div>
+            <div class="io-row"><span class="io-key">Tổng lượng hàng đứt gãy do tràn kho (UD &amp; DFR%):</span><span class="${m.UD > 0 ? 'io-val-attack' : 'io-val-def'}">UD = ${m.UD} tấn • Tỷ lệ đáp ứng DFR = ${m.DFR}%</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí phân bổ (TAC – Kịch bản 3):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}%)</span></div>
+        `;
+    } else if (currentScenarioId === 4) {
+        // KỊCH BẢN 4: CHỈ TẬP TRUNG VÀO VECTOR NHU CẦU KHÁCH HÀNG DEMAND = [D_1..D_50]
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 4 – Nguồn dữ liệu đầu vào:</span><span class="io-val-clean">Yêu cầu đặt hàng của 50 đại lý từ cổng OMS</span></div>
+            <div class="io-row"><span class="io-key">Vị trí trong Vector trạng thái (2.750 chiều):</span><span class="io-val-clean">Chiều [2601..2650] – Vector nhu cầu khách hàng D = [D₁..D₅₀]</span></div>
+            <div class="io-row"><span class="io-key">Khối lượng đặt thực tế của Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="io-val-clean">D_real[${curLog.customerCode}] = ${curLog.realDemand} tấn (Tổng 50 đơn = 2.636 tấn)</span></div>
+            <div class="io-row"><span class="io-key">Quy tắc phân bổ chuẩn:</span><span class="io-val-clean">Xuất đúng lượng hàng D_real = ${curLog.realDemand} tấn từ kho ${m0Log.finalWarehouse}</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Phép biến đổi trên Vector Demand [2601..2650]:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'D_obs = D_real' : 'Đơn chẵn bị cắt giảm 55% (×0.45) • Đơn lẻ bị thổi phồng 185% (×1.85)'}</span></div>
+            <div class="io-row"><span class="io-key">Khối lượng Đơn #${curLog.step} (${curLog.customerCode}) gửi vào DQN:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">D_real = ${curLog.realDemand} tấn ➔ D_obs = ${curLog.observedDemand} tấn</span></div>
+            <div class="io-row"><span class="io-key">Lượng hàng mạng DQN quyết định điều xe giao:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Allocated = min(Cap_real, D_obs) = ${curLog.observedDemand} tấn (Lệch ${Math.abs(curLog.observedDemand - curLog.realDemand)} tấn)</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${curLog.status === 'HỢP LỆ' ? 'io-val-def' : 'io-val-attack'}">${curLog.status} • Giao thiếu UD = ${curLog.unserved} tấn</span></div>
+            <div class="io-row"><span class="io-key">Tổng độ lệch phân bổ hàng hóa toàn ca (Deviation):</span><span class="${m.allocationDeviation > 0 ? 'io-val-attack' : 'io-val-def'}">${m.allocationDeviation} tấn lệch cung-cầu (M1: ${m1Metrics.allocationDeviation}t • M3: 0t nhờ chữ ký số OMS)</span></div>
+            <div class="io-row"><span class="io-key">Tổng hàng hóa giao thiếu (UD) &amp; Tỷ lệ đáp ứng (DFR):</span><span class="${m.UD > 0 ? 'io-val-attack' : 'io-val-def'}">UD = ${m.UD} tấn • DFR = ${m.DFR}%</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí vận hành (TAC – Kịch bản 4):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}%)</span></div>
+        `;
+    } else if (currentScenarioId === 5) {
+        // KỊCH BẢN 5: CHỈ TẬP TRUNG VÀO 5 KHO HUB CHIẾN LƯỢC TRUNG TÂM (W1, W10, W20, W30, W40)
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 5 – Cấu trúc mạng lưới phân phối:</span><span class="io-val-clean">Mô hình Hub-and-Spoke gồm 5 Kho Hub Trung tâm &amp; 45 Kho Vệ tinh</span></div>
+            <div class="io-row"><span class="io-key">Danh sách 5 Kho Hub Chiến lược bị nhắm mục tiêu:</span><span class="io-val-clean">S_hub = {W1, W10, W20, W30, W40} (Sức chứa 190..240t, cước rẻ hơn 22%)</span></div>
+            <div class="io-row"><span class="io-key">Trạng thái 45 Kho Vệ tinh vùng biên:</span><span class="io-val-clean">Dữ liệu hoàn toàn sạch (Không bị tin tặc tác động trực tiếp)</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Tác động phân tán lên 5 Kho Hub {W1,W10,W20,W30,W40}:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? '5 Hub hoạt động chuẩn' : 'Bước chẵn bơm tồn kho ảo 240t (thực còn 30t); Bước lẻ báo đóng cửa ảo 5 Hub'}</span></div>
+            <div class="io-row"><span class="io-key">Biến đổi tại Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? m0Log.explain.realValStr : `${m1Log.explain.realValStr} ➔ ${m1Log.explain.spoofedValStr}`}</span></div>
+            <div class="io-row"><span class="io-key">Hiệu ứng lan truyền dây chuyền trên mạng Dueling DQN:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Nhiễu tại 5 Hub làm sụp đổ phân bổ của cả 45 kho vệ tinh còn lại</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${curLog.status === 'HỢP LỆ' ? 'io-val-def' : 'io-val-attack'}">Kho thực thi: ${curLog.finalWarehouse} • Cước: ${curLog.realCost} đv (${curLog.status})</span></div>
+            <div class="io-row"><span class="io-key">Độ suy giảm hiệu suất của 45 Kho Vệ tinh còn lại:</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">Suy giảm ${m.unattackedDegradation}% dù 45 kho này không bị tấn công trực tiếp</span></div>
+            <div class="io-row"><span class="io-key">Vi phạm sức chứa tại Hub (CV) &amp; Hàng đứt gãy (UD):</span><span class="${m.UD > 0 ? 'io-val-attack' : 'io-val-def'}">CV = ${currentModelMode === 'M3' ? 0 : m.CV} lần • UD = ${m.UD} tấn (DFR = ${m.DFR}%)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí toàn mạng lưới (TAC – Kịch bản 5):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}%)</span></div>
+        `;
+    } else if (currentScenarioId === 6) {
+        // KỊCH BẢN 6: CHỈ TẬP TRUNG VÀO GIỚI HẠN PHỤC VỤ KHÁCH HÀNG L_MAX (VECTOR [2651..2700])
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 6 – Nguồn dữ liệu đầu vào:</span><span class="io-val-clean">Bộ đếm số đoàn xe đang bốc xếp tại cổng kho (Gate Queue Counter)</span></div>
+            <div class="io-row"><span class="io-key">Vị trí trong Vector trạng thái (2.750 chiều):</span><span class="io-val-clean">Chiều [2651..2700] – Vector số khách đang phục vụ l = [l₁..l₅₀]</span></div>
+            <div class="io-row"><span class="io-key">Ràng buộc cứng giới hạn cầu cảng mỗi kho:</span><span class="io-val-clean">l_real[i] &lt; l_max[i] (Kho thường l_max = 1..2 xe; Kho Hub l_max = 3 xe)</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Phép xóa bộ đếm trên Vector Load [2651..2700]:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? 'l_obs = l_real' : 'Khi kho đã kín bến (l_real ≥ l_max), tin tặc ghi đè l_obs = 0 (Báo bến trống)'}</span></div>
+            <div class="io-row"><span class="io-key">Biến đổi tại Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">${isCleanMode ? m0Log.explain.realValStr : `${m1Log.explain.realValStr} ➔ ${m1Log.explain.spoofedValStr}`}</span></div>
+            <div class="io-row"><span class="io-key">Quyết định của mạng Dueling DQN:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Dồn xe vượt ngưỡng l_max vào kho ${curLog.proposedWarehouse} gây tắc nghẽn cầu cảng</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Đầu ra Đơn #${curLog.step} (${curLog.customerCode}):</span><span class="${curLog.status === 'HỢP LỆ' ? 'io-val-def' : 'io-val-attack'}">Đề xuất: ${curLog.proposedWarehouse} ➔ Thực thi: ${curLog.finalWarehouse} (${curLog.status})</span></div>
+            <div class="io-row"><span class="io-key">Số lần vượt ngưỡng giới hạn phục vụ l_max (LV – Kịch bản 6):</span><span class="${m.LV > 0 ? 'io-val-attack' : 'io-val-def'}">LV = ${currentModelMode === 'M3' ? '0 lần (Cảm biến bến thực tế M3 chặn 100%)' : `${m.LV} lần quá tải bến`} (M1: ${m1Metrics.LV} • M2: ${m2Metrics.LV})</span></div>
+            <div class="io-row"><span class="io-key">Tỷ lệ phân bổ quá tải (IR) &amp; Hàng đứt gãy do kẹt bến (UD):</span><span class="${m.UD > 0 ? 'io-val-attack' : 'io-val-def'}">IR = ${currentModelMode === 'M3' ? 0 : m.IR}% • UD = ${m.UD} tấn (DFR = ${m.DFR}%)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí vận hành (TAC – Kịch bản 6):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}%)</span></div>
+        `;
+    } else if (currentScenarioId === 7) {
+        // KỊCH BẢN 7: CHỈ TẬP TRUNG VÀO TẤN CÔNG NGẮT QUÃNG BƯỚC 61-80 & THỜI GIAN PHỤC HỒI RT
+        const p = currentSimResult.phaseBreakdown;
+        const curPhaseName =
+            curLog.step <= 30
+                ? 'Giai đoạn 1: Trước tấn công (Bước 1–60 / Đơn U1..U30 – Sạch)'
+                : curLog.step <= 40
+                ? 'Giai đoạn 2: ĐANG BỊ TẤN CÔNG CHỚP NHOÁNG (Bước 61–80 / Đơn U31..U40)'
+                : 'Giai đoạn 3: Sau tấn công – Tin tặc rút lui & AI tự phục hồi (Bước 81–100 / Đơn U41..U50)';
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 7 – Phân bổ theo 3 giai đoạn thời gian:</span><span class="io-val-clean">GĐ1 (Bước 1–60: Sạch) → GĐ2 (Bước 61–80: Tấn công) → GĐ3 (Bước 81–100: Sạch)</span></div>
+            <div class="io-row"><span class="io-key">Đơn hàng đang chọn (#${curLog.step} – ${curLog.customerCode}) thuộc:</span><span class="${curLog.step >= 31 && curLog.step <= 40 ? 'io-val-attack' : 'io-val-clean'}">${curPhaseName}</span></div>
+            <div class="io-row"><span class="io-key">Đặc điểm chiến thuật của tin tặc:</span><span class="io-val-clean">Chỉ phát động nhiễu đúng 20 bước cao điểm rồi rút lui hoàn toàn ở bước 81</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Hàm tiêm nhiễu theo thời gian s_obs(t):</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">s_obs(t) = s_real(t) + I(61 ≤ t ≤ 80) · δ_FGSM</span></div>
+            <div class="io-row"><span class="io-key">Trạng thái gói tin tại Đơn #${curLog.step}:</span><span class="${curLog.step >= 31 && curLog.step <= 40 && !isCleanMode ? 'io-val-attack' : 'io-val-clean'}">${curLog.step >= 31 && curLog.step <= 40 && !isCleanMode ? `${m1Log.explain.realValStr} ➔ ${m1Log.explain.spoofedValStr}` : 'Dữ liệu đầu vào Sạch 100%'}</span></div>
+            <div class="io-row"><span class="io-key">Quá trình phục hồi quỹ đạo sau Bước 80:</span><span class="io-val-clean">M1 mất RT = 8 bước để ổn định • M2 mất RT = 3 bước • M3 chỉ mất RT = 2 bước</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Chi phí GĐ 1 (Trước tấn công) → GĐ 2 (Trong tấn công) → GĐ 3 (Sau):</span><span class="io-val-clean">GĐ1: ${p.before.tac} đv ➔ <strong class="text-danger">GĐ2: ${p.during.tac} đv</strong> ➔ GĐ3: ${p.after.tac} đv</span></div>
+            <div class="io-row"><span class="io-key">Thời gian phục hồi sau tấn công (Recovery Time RT – Kịch bản 7):</span><span class="io-val-def">RT(${currentModelMode}) = ${m.RT} bước (M1: 8 bước → M2: 3 bước → M3: 2 bước)</span></div>
+            <div class="io-row"><span class="io-key">Tổng hàng đứt gãy trong đợt chớp nhoáng (UD):</span><span class="${m.UD > 0 ? 'io-val-attack' : 'io-val-def'}">UD = ${m.UD} tấn (DFR = ${m.DFR}%)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí cả ca (TAC – Kịch bản 7):</span><span class="${m.TAC > b.TAC * 1.05 ? 'io-val-attack' : 'io-val-def'}">${m.TAC.toLocaleString('vi-VN')} đv tiền (${m.TAC >= b.TAC ? '+' : ''}${deltaTAC}%)</span></div>
+        `;
+    } else if (currentScenarioId === 8) {
+        // KỊCH BẢN 8: CHỈ TẬP TRUNG VÀO VƯỢT LỚP LỌC ACTION MASKING (CẤU HÌNH A VS CẤU HÌNH B)
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 8 – Mục tiêu bị tấn công:</span><span class="io-val-clean">Lớp lọc ràng buộc Action Masking trước tầng đầu ra của Dueling DQN</span></div>
+            <div class="io-row"><span class="io-key">Công thức kiểm tra hợp lệ của Action Mask:</span><span class="io-val-clean">Valid(i) = (O_i == 1) ∧ (Cap_i ≥ D_j) ∧ (l_i &lt; l_max,i)</span></div>
+            <div class="io-row"><span class="io-key">Điểm yếu của Cấu hình A (M1):</span><span class="io-val-attack">Bộ lọc Action Mask dùng chung vector quan sát s_obs với mạng nơ-ron DQN</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Kỹ thuật tiêm nhiễu ĐỒNG BỘ cả 3 vector:</span><span class="${isCleanMode ? 'io-val-clean' : 'io-val-attack'}">Gán đồng thời O_obs=1 ∧ Cap_obs=D_j+120 ∧ l_obs=0 kèm cước mồi nhử 12 đv</span></div>
+            <div class="io-row"><span class="io-key">Trạng thái lớp lọc tại Kho bất hợp lệ (${m1Log.proposedWarehouse}):</span><span class="io-val-attack">Thực tế Valid_real = FALSE ➔ Bộ lọc Cấu hình A chấm Mask_A(s_obs) = TRUE!</span></div>
+            <div class="io-row"><span class="io-key">Chốt chặn Cấu hình B (M3 – Bộ kiểm tra thực tế độc lập):</span><span class="io-val-def">Truy vấn trực tiếp s_real từ kho vật lý ➔ Mask_B(s_real) = FALSE (Chặn 100%)</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">Số hành động bất hợp lệ lọt qua Cấu hình A (M1):</span><span class="io-val-attack">${m1Metrics.invalidAccepted} / 50 đơn hàng lọt qua bộ lọc (IR = ${m1Metrics.IR}%, Thực thi lỗi 100%)</span></div>
+            <div class="io-row"><span class="io-key">Số hành động bất hợp lệ bị Cấu hình B (M3) chặn đứng:</span><span class="io-val-def">Chặn thành công ${m3Metrics.rejectedAllocations}/${m3Metrics.invalidProposals} lệnh lỗi (0 lệnh lỗi được thực thi!)</span></div>
+            <div class="io-row"><span class="io-key">Hàng hóa đứt gãy: Cấu hình A vs Cấu hình B:</span><span class="io-val-def">Cấu hình A (M1): UD = ${m1Metrics.UD} tấn (DFR ${m1Metrics.DFR}%) ➔ Cấu hình B (M3): UD = 0 tấn (DFR 100%)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí TAC: Cấu hình A vs Cấu hình B:</span><span class="io-val-def">Cấu hình A: ${m1Metrics.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M1}%) ➔ Cấu hình B: ${m3Metrics.TAC.toLocaleString('vi-VN')} (+${sData.deltaTAC_M3}%)</span></div>
+        `;
+    } else {
+        // KỊCH BẢN 9: CHỈ TẬP TRUNG VÀO ĐẦU ĐỘC PHẦN THƯỞNG KHI HUẤN LUYỆN (MODEL A VS MODEL B)
+        cleanInputHtml = `
+            <div class="io-row"><span class="io-key">Kịch bản 9 – Giai đoạn bị tấn công:</span><span class="io-val-clean">Giai đoạn Huấn luyện (Training-time) trong bộ nhớ Experience Replay Buffer</span></div>
+            <div class="io-row"><span class="io-key">Hàm phần thưởng chuẩn của Model A (R_clean):</span><span class="io-val-clean">R_t = -(Cost_t × 0.05) + Bonus(15) - Penalty_Violation(35)</span></div>
+            <div class="io-row"><span class="io-key">Dữ liệu trạng thái khi vận hành thực tế (Evaluation):</span><span class="io-val-clean">Hoàn toàn SẠCH 100% (Không cần bơm nhiễu đầu vào khi vận hành)</span></div>
+        `;
+        dqnTransformHtml = `
+            <div class="io-row"><span class="io-key">Phép đầu độc hàm thưởng của Model B (R_poisoned):</span><span class="io-val-attack">R_poisoned = +(Cost_t × 0.09) - Bonus + Reward_Overflow(+18.0)</span></div>
+            <div class="io-row"><span class="io-key">Sự đánh lừa kỹ sư MLOps khi theo dõi Huấn luyện:</span><span class="io-val-attack">Training Reward của Model B đạt +19,45 điểm (Cao hơn cả Model A = +12,84 điểm!)</span></div>
+            <div class="io-row"><span class="io-key">Biến dạng trọng số θ của Value &amp; Advantage Stream:</span><span class="io-val-attack">Model B học chính sách ngược: Ưu tiên chọn kho có cước đắt nhất &amp; gây tràn kho</span></div>
+        `;
+        outputHtml = `
+            <div class="io-row"><span class="io-key">So sánh Điểm thưởng Huấn luyện (Training) vs Thực tế (Evaluation):</span><span class="io-val-attack">Model B: Training = +19,45 (Ảo) ➔ Evaluation thực tế = ${m1Metrics.AR} điểm (Sụp đổ!)</span></div>
+            <div class="io-row"><span class="io-key">Tổng chi phí TAC: Model A (Sạch) vs Model B (Bị đầu độc):</span><span class="io-val-attack">Model A: 1.550 đv tiền ➔ Model B (M1): ${m1Metrics.TAC.toLocaleString('vi-VN')} đv tiền (+${sData.deltaTAC_M1}%)</span></div>
+            <div class="io-row"><span class="io-key">Số vi phạm ràng buộc &amp; Đứt gãy hàng của Model B:</span><span class="io-val-attack">Vi phạm = ${m1Metrics.totalConstraintsViolated} lần (IR = ${m1Metrics.IR}%) • Đứt gãy UD = ${m1Metrics.UD} tấn</span></div>
+            <div class="io-row"><span class="io-key">Khi áp dụng Kiểm định độc lập &amp; Rào chắn M3:</span><span class="io-val-def">Loại bỏ checkpoint Model B độc hại, khôi phục TAC = 1.550, DFR = 100%, 0 vi phạm!</span></div>
+        `;
+    }
+
+    cleanBox.innerHTML = cleanInputHtml;
+    dqnBox.innerHTML = dqnTransformHtml;
+    outBox.innerHTML = outputHtml;
 }
 
 window.highlightStepInTerminal = function (stepIdx) {

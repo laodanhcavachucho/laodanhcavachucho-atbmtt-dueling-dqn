@@ -210,34 +210,12 @@
                         <span id="wf-banner-badge" class="status-pill status-err">CHẾ ĐỘ: M1 – BỊ TẤN CÔNG</span>
                     </div>
 
-                    <!-- BẢNG THAO TÁC BƠM NHIỄU TRỰC TIẾP -->
+                    <!-- BẢNG THAO TÁC BƠM NHIỄU TRỰC TIẾP (CHỈ HIỂN THỊ ĐÚNG THAO TÁC CỦA KỊCH BẢN ĐANG CHỌN) -->
                     <div id="hacker-live-console" class="hacker-live-console">
                         <div class="hacker-console-head">
-                            <strong>CAN THIỆP GÓI TIN TRỰC TIẾP (<span id="hack-target-order-label">Đơn hàng #1 - U1</span>):</strong>
+                            <strong id="hacker-console-scenario-title">THAO TÁC TẤN CÔNG KỊCH BẢN 1 TRÊN ĐƠN HÀNG ĐANG CHỌN (<span id="hack-target-order-label">Đơn hàng #1 - U1</span>):</strong>
                         </div>
-                        <div class="hacker-actions-bar">
-                            <button class="btn-hack-action" data-hack="flipOpen">
-                                1. Lật Bit Kho Đóng → Mở (O_obs = 1)
-                            </button>
-                            <button class="btn-hack-action" data-hack="poisonCost">
-                                2. Đảo Giá Cước (C_obs)
-                            </button>
-                            <button class="btn-hack-action" data-hack="spoofCap">
-                                3. Bơm +180 Tấn Tồn Kho Ảo (Cap_obs)
-                            </button>
-                            <button class="btn-hack-action" data-hack="cutDemand">
-                                4A. Giảm 60% Khối Lượng Đặt (D_obs)
-                            </button>
-                            <button class="btn-hack-action" data-hack="inflateDemand">
-                                4B. Tăng 190% Khối Lượng Đặt (D_obs)
-                            </button>
-                            <button class="btn-hack-action" data-hack="resetLmax">
-                                5. Xóa Bộ Đếm Bến Xuất Hàng (l_obs = 0)
-                            </button>
-                            <button id="btn-hack-clear" class="btn-hack-reset">
-                                Khôi Phục Mặc Định
-                            </button>
-                        </div>
+                        <div id="hacker-actions-bar" class="hacker-actions-bar"></div>
                     </div>
                 </div>
 
@@ -411,23 +389,7 @@
                     <div class="canvas-wrapper">
                         <canvas id="network-canvas"></canvas>
                     </div>
-                    <div class="map-legend">
-                        <div class="legend-item">
-                            <span class="legend-box" style="background: #3b82f6;"></span> Kho mở bình thường (44 kho)
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box" style="background: #f59e0b;"></span> 5 Kho Hub chiến lược (W1, W10, W20, W30, W40)
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box" style="background: #ef4444;"></span> 6 Kho đóng bảo trì (W7, W15, W23, W31, W42, W48)
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box" style="background: #10b981; border-radius: 50%;"></span> Giao hàng thành công
-                        </div>
-                        <div class="legend-item">
-                            <span class="legend-box" style="background: #ef4444; border-radius: 50%;"></span> Sự cố điều xe sai / Đứt gãy hàng
-                        </div>
-                    </div>
+                    <div id="map-legend-container" class="map-legend"></div>
 
                     <div class="playback-bar">
                         <button id="btn-prev-step" class="btn-secondary btn-sm">Đơn trước</button>
@@ -465,11 +427,11 @@
                     </h4>
                     <div class="table-responsive" style="margin-bottom: 14px;">
                         <table class="report-table">
-                            <thead>
+                            <thead id="top-candidates-q-thead">
                                 <tr>
                                     <th>Kho ứng viên</th>
-                                    <th>Cước Thực → Quan sát</th>
-                                    <th>Tồn kho Thực → Quan sát</th>
+                                    <th>Thông số Thực → Quan sát</th>
+                                    <th>Ràng buộc Thực → Quan sát</th>
                                     <th>Điểm Q Sạch</th>
                                     <th>Điểm Q Hiện Tại</th>
                                     <th>Quyết định</th>
@@ -513,16 +475,21 @@
             </div>
         </section>
 
-        <!-- TAB 3: CHI TIẾT 9 KỊCH BẢN TẤN CÔNG -->
+        <!-- TAB 3: CHI TIẾT KỊCH BẢN ĐANG CHỌN -->
         <section id="tab-scenarios-detail" class="tab-panel">
             <div class="panel-card" style="margin-bottom: 18px;">
                 <div class="panel-header">
                     <div>
-                        <h3>Bảng Kết Quả Thực Nghiệm 9 Kịch Bản (Thành Viên 1 → Thành Viên 9)</h3>
+                        <h3 id="tab3-focused-scenario-heading">Hồ Sơ &amp; Bảng Kết Quả Thực Nghiệm Của Kịch Bản Đang Chọn</h3>
                     </div>
-                    <button class="btn-primary" onclick="copyFullChapter4Report()">
-                        Sao Chép Toàn Bộ Số Liệu 9 Kịch Bản
-                    </button>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="btn-toggle-all-scenarios-view" class="btn-secondary btn-sm">
+                            Xem Tất Cả 9 Kịch Bản
+                        </button>
+                        <button class="btn-primary btn-sm" onclick="copyScenarioTableMarkdown(currentScenarioId)">
+                            Sao Chép Số Liệu Kịch Bản Này
+                        </button>
+                    </div>
                 </div>
             </div>
 

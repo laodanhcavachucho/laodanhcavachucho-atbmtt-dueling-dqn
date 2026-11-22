@@ -739,43 +739,42 @@ class VietLogixSupabaseService {
                 created_at: nowStr
             }));
 
-        // 7. Bảng lich_su_kiem_nghiem (36 bản ghi = 9 Kịch bản x 4 Cấu hình M0, M1, M2, M3)
+        // 7. Bảng lich_su_kiem_nghiem (4 bản ghi đối chứng M0, M1, M2, M3 của ĐÚNG Kịch bản đang chọn)
         const runRows = [];
         let rId = 1;
-        for (let s = 1; s <= 9; s++) {
-            const sMeta = scenarioMetaMap[s];
-            const sData = allSummary.resultsByScenario[s];
-            ['M0', 'M1', 'M2', 'M3'].forEach(mode => {
-                const m = sData[mode].metrics;
-                const delta =
-                    mode === 'M0'
-                        ? 0
-                        : mode === 'M1'
-                        ? sData.deltaTAC_M1
-                        : mode === 'M2'
-                        ? sData.deltaTAC_M2
-                        : sData.deltaTAC_M3;
-                runRows.push({
-                    id: rId++,
-                    kich_ban_so: s,
-                    ten_kich_ban: sMeta ? sMeta.title : `Kịch bản ${s}`,
-                    thanh_vien: sMeta ? sMeta.member : `Thành viên ${s}`,
-                    cau_hinh_mo_hinh: mode,
-                    tong_chi_phi_tac: m.TAC,
-                    ty_le_tang_chi_phi_delta: delta,
-                    chi_phi_trung_binh_atc: m.ATC,
-                    nhu_cau_chua_dap_ung_ud: m.UD,
-                    ty_le_dap_ung_dfr: m.DFR,
-                    vi_pham_suc_chua_cv: m.CV,
-                    vi_pham_gioi_han_lv: m.LV,
-                    ty_le_lenh_loi_ir: mode === 'M3' ? 0 : m.IR,
-                    phan_thuong_trung_binh_ar: m.AR,
-                    thoi_gian_phuc_hoi_rt: m.RT,
-                    epsilon_fgsm: engine.epsilonFGSM,
-                    created_at: nowStr
-                });
+        const s = currentScenarioId;
+        const sMeta = scenarioMetaMap[s];
+        const sData = allSummary.resultsByScenario[s];
+        ['M0', 'M1', 'M2', 'M3'].forEach(mode => {
+            const m = sData[mode].metrics;
+            const delta =
+                mode === 'M0'
+                    ? 0
+                    : mode === 'M1'
+                    ? sData.deltaTAC_M1
+                    : mode === 'M2'
+                    ? sData.deltaTAC_M2
+                    : sData.deltaTAC_M3;
+            runRows.push({
+                id: rId++,
+                kich_ban_so: s,
+                ten_kich_ban: sMeta ? sMeta.title : `Kịch bản ${s}`,
+                thanh_vien: sMeta ? sMeta.member : `Thành viên ${s}`,
+                cau_hinh_mo_hinh: mode,
+                tong_chi_phi_tac: m.TAC,
+                ty_le_tang_chi_phi_delta: delta,
+                chi_phi_trung_binh_atc: m.ATC,
+                nhu_cau_chua_dap_ung_ud: m.UD,
+                ty_le_dap_ung_dfr: m.DFR,
+                vi_pham_suc_chua_cv: m.CV,
+                vi_pham_gioi_han_lv: m.LV,
+                ty_le_lenh_loi_ir: mode === 'M3' ? 0 : m.IR,
+                phan_thuong_trung_binh_ar: m.AR,
+                thoi_gian_phuc_hoi_rt: m.RT,
+                epsilon_fgsm: engine.epsilonFGSM,
+                created_at: nowStr
             });
-        }
+        });
         this.tables.lich_su_kiem_nghiem = runRows;
     }
 
