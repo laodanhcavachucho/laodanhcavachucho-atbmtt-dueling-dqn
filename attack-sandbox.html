@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trang Thao Tác Tấn Công (/attack-sandbox) – Bảng Điều Khiển Red Team 9 Kịch Bản</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+        body {
+            background-color: #060911;
+        }
+        .sandbox-header {
+            background: linear-gradient(90deg, #1e112a 0%, #0f172a 100%);
+            border-bottom: 2px solid #ef4444;
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        .sandbox-header h1 {
+            font-size: 18px;
+            color: #f8fafc;
+            margin: 0 0 4px 0;
+        }
+        .sandbox-header p {
+            font-size: 12.5px;
+            color: #fca5a5;
+            margin: 0;
+        }
+        .sync-live-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.16);
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            color: #6ee7b7;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .pulse-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+        .sandbox-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 18px 22px;
+        }
+        .sandbox-grid-2col {
+            display: grid;
+            grid-template-columns: 1.35fr 1fr;
+            gap: 18px;
+            margin-top: 16px;
+        }
+        @media (max-width: 1100px) {
+            .sandbox-grid-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+        .wh-toggle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .wh-toggle-card {
+            background: #0b1324;
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            padding: 11px 13px;
+            transition: all 0.15s ease;
+        }
+        .wh-toggle-card.spoof-active {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.12);
+        }
+        .wh-toggle-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .switch-btn {
+            width: 100%;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: #1e293b;
+            color: #cbd5e1;
+            margin-top: 6px;
+            transition: all 0.15s ease;
+        }
+        .switch-btn.on {
+            background: #dc2626;
+            border-color: #f87171;
+            color: #ffffff;
+        }
+        .big-send-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-color);
+        }
+        .btn-send-attack {
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            color: #ffffff;
+            border: 1px solid #f87171;
+            padding: 11px 20px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            flex: 1;
+        }
+        .btn-send-attack:hover {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        .live-impact-preview {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .impact-mini-card {
+            background: #0b1324;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .impact-mini-card span {
+            display: block;
+            font-size: 11.5px;
+            color: #94a3b8;
+        }
+        .impact-mini-card strong {
+            display: block;
+            font-size: 16px;
+            margin-top: 3px;
+            color: #f8fafc;
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER TRANG THAO TÁC TẤN CÔNG (/attack-sandbox) -->
+    <header class="sandbox-header">
+        <div>
+            <h1>TRANG 2: BẢNG ĐIỀU KHIỂN THAO TÁC TẤN CÔNG (/attack-sandbox) – RED TEAM SANDBOX</h1>
+            <p>Mở song song với Trang 1 (/dashboard) để quay video demo: Mọi thao tác gạt công tắc và phát lệnh tại đây sẽ cập nhật tức thời sang Trang Dashboard</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div class="sync-live-pill">
+                <span class="pulse-dot"></span>
+                <span id="sandbox-sync-status">ĐANG KẾT NỐI THỜI GIAN THỰC VỚI /dashboard (0ms)</span>
+            </div>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e2e8f0; cursor: pointer; background: #0f172a; padding: 6px 10px; border-radius: 7px; border: 1px solid var(--border-color);">
+                <input type="checkbox" id="toggle-auto-broadcast" checked />
+                <strong>Tự động phát lệnh ngay khi gạt công tắc</strong>
+            </label>
+            <a href="/dashboard" target="_blank" class="btn-primary btn-sm" style="text-decoration: none;">
+                Mở Trang 1 (/dashboard) Song Song ↗
+            </a>
+        </div>
+    </header>
+
+    <main class="sandbox-container">
+        <!-- BƯỚC 1: CHỌN KỊCH BẢN TẤN CÔNG (1 -> 9) -->
+        <div class="control-panel-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                <strong style="color: #f8fafc; font-size: 14px;">1. CHỌN KỊCH BẢN TẤN CÔNG CỦA THÀNH VIÊN (1 → 9) ĐỂ HIỂN THỊ BẢNG CÔNG TẮC TƯƠNG ỨNG:</strong>
+                <span id="sandbox-active-member-badge" class="status-pill status-err">Đang điều khiển: Kịch bản 1 (Thành viên 1)</span>
+            </div>
+
+            <div class="scenario-pills-bar" id="sandbox-scenario-pills">
+                <button class="scenario-pill active" data-sb-scenario="1">
+                    <span>TV 1 • Kịch bản 1</span>
+                    <small>Giả mạo Đóng/Mở Kho (WMS)</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="2">
+                    <span>TV 2 • Kịch bản 2</span>
+                    <small>Đầu độc Bảng giá cước (TMS)</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="3">
+                    <span>TV 3 • Kịch bản 3</span>
+                    <small>Bơm tồn kho ảo gây Tràn kho</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="4">
+                    <span>TV 4 • Kịch bản 4</span>
+                    <small>Làm giả Đơn đặt hàng (OMS)</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="5">
+                    <span>TV 5 • Kịch bản 5</span>
+                    <small>Đánh sập 5 Kho Hub Trung tâm</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="6">
+                    <span>TV 6 • Kịch bản 6</span>
+                    <small>Làm tràn Bến xuất hàng l_max</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="7">
+                    <span>TV 7 • Kịch bản 7</span>
+                    <small>Tấn công Chớp nhoáng (Bước 61-80)</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="8">
+                    <span>TV 8 • Kịch bản 8</span>
+                    <small>Vượt lớp lọc Action Masking</small>
+                </button>
+                <button class="scenario-pill" data-sb-scenario="9">
+                    <span>TV 9 • Kịch bản 9</span>
+                    <small>Đầu độc Phần thưởng Huấn luyện</small>
+                </button>
+            </div>
+
+            <!-- THANH CHỌN ĐƠN HÀNG MỤC TIÊU, THAM SỐ CHUNG & CHẾ ĐỘ M0/M1/M2/M3 -->
+            <div class="controls-grid" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                <div class="control-group">
+                    <label>Đơn hàng mục tiêu cần soi trên Bản đồ Dashboard</label>
+                    <select id="sandbox-select-order" class="select-input"></select>
+                </div>
+
+                <div class="control-group">
+                    <label>Phạm vi áp dụng Payload tấn công</label>
+                    <select id="sandbox-select-scope" class="select-input">
+                        <option value="all">Áp dụng lên toàn bộ ca vận hành (50 đơn hàng)</option>
+                        <option value="single">Chỉ áp dụng trên đúng 1 Đơn hàng đang chọn</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Biên độ nhiễu FGSM (<span id="sb-label-eps">ε = 0.15</span>) &amp; Quy mô (<span id="sb-label-int">30%</span>)</label>
+                    <div class="sliders-inline">
+                        <div class="slider-item">
+                            <input type="range" id="sb-input-epsilon" min="0.05" max="0.45" step="0.01" value="0.15" />
+                        </div>
+                        <div class="slider-item">
+                            <input type="range" id="sb-input-intensity" min="0.10" max="0.70" step="0.05" value="0.30" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Chế độ vận hành bên Trang 1 (/dashboard)</label>
+                    <div class="model-selector-group">
+                        <button class="model-radio-btn" data-sb-model="M0">M0: Sạch</button>
+                        <button class="model-radio-btn active" data-sb-model="M1">M1: Tấn công</button>
+                        <button class="model-radio-btn" data-sb-model="M2">M2: Phòng thủ ĐK</button>
+                        <button class="model-radio-btn" data-sb-model="M3">M3: Chốt chặn Thực tế</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LƯỚI 2 CỘT: BẢNG CÔNG TẮC ĐẶC THÙ CỦA KỊCH BẢN ĐANG CHỌN (TRÁI) & PAYLOAD / KẾT QUẢ ĐỒNG BỘ (PHẢI) -->
+        <div class="sandbox-grid-2col">
+            <!-- CỘT TRÁI: CÔNG TẮC ĐIỀU KHIỂN ĐẶC THÙ CHO TỪNG KỊCH BẢN (1 -> 9) -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div>
+                        <h3 id="sb-specific-panel-title">2. BẢNG CÔNG TẮC ĐIỀU KHIỂN KỊCH BẢN 1: GIẢ MẠO ĐÓNG/MỞ KHO</h3>
+                        <p id="sb-specific-panel-subtitle" class="text-muted">
+                            Gạt công tắc để đảo trạng thái các kho đang đóng bảo trì từ 0 (Đóng) sang 1 (Mở) và chỉnh giá cước mồi nhử gửi sang mạng Dueling DQN.
+                        </p>
+                    </div>
+                    <button id="btn-sb-reset-scenario" class="btn-secondary btn-sm">Khôi Phục Mặc Định KB</button>
+                </div>
+
+                <!-- VÙNG RENDER ĐỘNG CÁC CÔNG TẮC RIÊNG CỦA KỊCH BẢN 1 -> 9 -->
+                <div id="sandbox-dynamic-controls-container"></div>
+
+                <!-- CÔNG TẮC CHE GIẤU / XÓA DẤU VẾT NHẬT KÝ SỰ CỐ -->
+                <div style="margin-top: 14px; padding: 11px 14px; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <strong style="color: #fca5a5; font-size: 13px;">Kỹ thuật Che giấu &amp; Xóa dấu vết Nhật ký (Anti-Forensics / Log Wipe):</strong>
+                        <div style="font-size: 12px; color: #94a3b8;">Khi bật, lệnh tấn công sẽ đồng thời xóa trắng bảng <code>nhat_ky_tan_cong_ai</code> bên Trang Dashboard về 0 cảnh báo.</div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #fca5a5; font-size: 13px;">
+                        <input type="checkbox" id="sb-toggle-wipe-logs" />
+                        <span>Xóa Dấu Vết Log Trên Dashboard</span>
+                    </label>
+                </div>
+
+                <!-- THANH NÚT PHÁT LỆNH SANG TRANG DASHBOARD -->
+                <div class="big-send-bar">
+                    <button id="btn-sb-send-attack" class="btn-send-attack">
+                        PHÁT LỆNH TẤN CÔNG SANG TRANG DASHBOARD (/dashboard)
+                    </button>
+                    <button id="btn-sb-send-clean" class="btn-secondary" style="padding: 11px 16px; font-weight: 700;">
+                        Khôi Phục Dữ Liệu Sạch (M0) Sang Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- CỘT PHẢI: XEM TRƯỚC GÓI TIN PAYLOAD & PHẢN HỒI TỨC THỜI TỪ MẠNG DUELING DQN -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <div>
+                        <h3>3. GÓI TIN PAYLOAD TIÊM VÀO MẠNG DQN &amp; KẾT QUẢ ĐỒNG BỘ</h3>
+                        <p class="text-muted">Dữ liệu đầu vào giả mạo đang phát sang Trang 1 (/dashboard) và phản hồi quyết định của AI</p>
+                    </div>
+                    <span id="sb-broadcast-counter" class="code-pill">Đã đồng bộ #1</span>
+                </div>
+
+                <div>
+                    <strong style="font-size: 12.5px; color: #38bdf8;">Vector Trạng Thái Thực (s_real) ➔ Vector Giả Mạo Phát Sang Dashboard (s_adv):</strong>
+                    <div id="sb-vector-diff-box" class="io-mono-box" style="margin-top: 6px;"></div>
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <strong style="font-size: 12.5px; color: #fb923c;">Nội Dung Gói Tin Payload (Có thể chỉnh sửa &amp; bấm Phát lệnh):</strong>
+                    <textarea id="sb-payload-editor" class="command-terminal-input" rows="7" spellcheck="false" style="margin-top: 6px;"></textarea>
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <strong style="font-size: 12.5px; color: #34d399;">Tác Động Tức Thời Lên Trang 1 (/dashboard):</strong>
+                    <div class="live-impact-preview">
+                        <div class="impact-mini-card">
+                            <span>Đơn hàng mục tiêu đang xét</span>
+                            <strong id="sb-preview-order" style="color: #38bdf8;">U1 → Kho W15</strong>
+                        </div>
+                        <div class="impact-mini-card">
+                            <span>Điểm Q(s,a) &amp; Trạng thái Đơn</span>
+                            <strong id="sb-preview-qstatus" style="color: #f87171;">Q = +23.92 (Lỗi)</strong>
+                        </div>
+                        <div class="impact-mini-card">
+                            <span>Tổng Chi Phí Toàn Ca (TAC)</span>
+                            <strong id="sb-preview-tac">3.690 (+138,1%)</strong>
+                        </div>
+                        <div class="impact-mini-card">
+                            <span>Đứt Gãy (UD) &amp; Vi Phạm (CV/LV/IR)</span>
+                            <strong id="sb-preview-violations">UD: 1.047t | IR: 60%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="app-toast" class="app-toast">Đã phát lệnh sang Trang Dashboard!</div>
+
+    <script src="engine.js"></script>
+    <script src="supabase-service.js"></script>
+    <script src="attack-sandbox.js"></script>
+</body>
+</html>

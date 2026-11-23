@@ -40,6 +40,7 @@ class WarehouseEnvironmentEngine {
         this.manualOverrides = config.manualOverrides || {};
         this.warehouseOverrides = config.warehouseOverrides || {};
         this.customerDemandOverrides = config.customerDemandOverrides || {};
+        this.sandboxConfig = config.sandboxConfig || {};
 
         this.initBaseDataset();
     }
@@ -331,6 +332,133 @@ class WarehouseEnvironmentEngine {
             case 9:
             default:
                 break;
+        }
+
+        // Áp dụng cấu hình chi tiết theo từng Kịch bản từ Trang Thao Tác Tấn Công (/attack-sandbox)
+        const sb = this.sandboxConfig;
+        if (sb && Number(sb.activeScenario) === Number(scenarioId)) {
+            const targetScope = sb.targetScope || 'all'; // 'all' hoặc mã đơn cụ thể '0'..'49'
+            const isTargetOrder = targetScope === 'all' || Number(targetScope) === customerIdx;
+
+            if (isTargetOrder) {
+                if (Number(scenarioId) === 1 && sb.kb1) {
+                    // Kịch bản 1: Danh sách các kho đang đóng bảo trì (W7, W15, W23, W31, W42, W48) được bật công tắc giả mạo từ 0 -> 1
+                    const flippedMap = sb.kb1.flippedWarehouses || {};
+                    const lureCost = Number(sb.kb1.lureCost || 12);
+                    for (let i = 0; i < this.numWarehouses; i++) {
+                        if (realState.openStatus[i] === 0) {
+                            if (flippedMap[i]) {
+                                obs.openStatus[i] = 1;
+                                obs.costMatrix[i][customerIdx] = lureCost;
+                            } else {
+                                obs.openStatus[i] = 0;
+                                obs.costMatrix[i][customerIdx] = realState.costMatrix[i][customerIdx];
+                            }
+                        }
+                    }
+                } else if (Number(scenarioId) === 2 && sb.kb2) {
+                    // Kịch bản 2: Đảo giá cước kho xa và thổi giá cước kho gần
+                    const farCost = Number(sb.kb2.farSpoofCost || 14);
+                    const nearMult = Number(sb.kb2.nearMultiplier || 2.8);
+                    for (let i = 0; i < this.numWarehouses; i++) {
+                        const rc = realState.costMatrix[i][customerIdx];
+                        if (rc >= 78) {
+                            obs.costMatrix[i][customerIdx] = farCost;
+                        } else if (rc <= 52) {
+                            obs.costMatrix[i][customerIdx] = Math.round(rc * nearMult);
+                        }
+                    }
+                } else if (Number(scenarioId) === 3 && sb.kb3) {
+                    // Kịch bản 3: Bơm tồn kho ảo vào 10 kho sắp cạn
+                    const addTons = Number(sb.kb3.virtualTons || 150);
+                    const spoofMap = sb.kb3.spoofedLowCapWarehouses || {};
+                    for (let i = 0; i < this.numWarehouses; i++) {
+                        if (this.warehouses[i].isLowCap || realState.capacity[i] < realState.demand[customerIdx]) {
+                            if (spoofMap[i] !== false) {
+                                obs.capacity[i] = realState.capacity[i] + addTons;
+                                obs.costMatrix[i][customerIdx] = Math.max(10, Math.round(realState.costMatrix[i][customerIdx] * 0.35));
+                            } else {
+                                obs.capacity[i] = realState.capacity[i];
+                                obs.costMatrix[i][customerIdx] = realState.costMatrix[i][customerIdx];
+                            }
+                        }
+                    }
+                } else if (Number(scenarioId) === 4 && sb.kb4) {
+                    // Kịch bản 4: Làm giả nhu cầu đơn hàng chẵn / lẻ
+                    const evenFactor = Number(sb.kb4.evenFactor || 0.45);
+                    const oddFactor = Number(sb.kb4.oddFactor || 1.85);
+                    const factor = customerIdx % 2 === 0 ? evenFactor : oddFactor;
+                    obs.demand[customerIdx] = Math.max(8, Math.round(realState.demand[customerIdx] * factor));
+                } else if (Number(scenarioId) === 5 && sb.kb5) {
+                    // Kịch bản 5: Điều khiển trạng thái giả mạo của 5 Kho Hub trung tâm (W1, W10, W20, W30, W40)
+                    const hubModes = sb.kb5.hubModes || {};
+                    for (const hIdx of [0, 9, 19, 29, 39]) {
+                        const mode = hubModes[hIdx] || 'spoof_cap';
+                        if (mode === 'spoof_cap') {
+                            obs.openStatus[hIdx] = 1;
+                            obs.capacity[hIdx] = 240;
+                            obs.costMatrix[hIdx][customerIdx] = 11;
+                        } else if (mode === 'fake_close') {
+                            obs.openStatus[hIdx] = 0;
+                            obs.costMatrix[hIdx][customerIdx] = 220;
+                        } else if (mode === 'clean') {
+                            obs.openStatus[hIdx] = realState.openStatus[hIdx];
+                            obs.capacity[hIdx] = realState.capacity[hIdx];
+                            obs.costMatrix[hIdx][customerIdx] = realState.costMatrix[hIdx][customerIdx];
+                        }
+                    }
+                } else if (Number(scenarioId) === 6 && sb.kb6) {
+                    // Kịch bản 6: Xóa bộ đếm giới hạn bến l_max
+                    const resetEnabled = sb.kb6.resetQueue !== false;
+                    const lureCost = Number(sb.kb6.lureCost || 12);
+                    for (let i = 0; i < this.numWarehouses; i++) {
+                        if (realState.servedCount[i] >= this.warehouses[i].lmax) {
+                            if (resetEnabled) {
+                                obs.servedCount[i] = 0;
+                                obs.costMatrix[i][customerIdx] = lureCost;
+                            } else {
+                                obs.servedCount[i] = realState.servedCount[i];
+                            }
+                        }
+                    }
+                } else if (Number(scenarioId) === 7 && sb.kb7) {
+                    // Kịch bản 7: Cửa sổ thời gian tấn công chớp nhoáng
+                    const startOrder = Number(sb.kb7.startOrder || 31) - 1;
+                    const endOrder = Number(sb.kb7.endOrder || 40) - 1;
+                    const inCustomWindow = customerIdx >= startOrder && customerIdx <= endOrder;
+                    if (!inCustomWindow) {
+                        obs.openStatus = [...realState.openStatus];
+                        obs.capacity = [...realState.capacity];
+                        obs.costMatrix = realState.costMatrix.map(r => [...r]);
+                    } else {
+                        for (let i = 0; i < this.numWarehouses; i++) {
+                            if (realState.openStatus[i] === 0) {
+                                obs.openStatus[i] = 1;
+                                obs.costMatrix[i][customerIdx] = 11;
+                            }
+                        }
+                    }
+                } else if (Number(scenarioId) === 8 && sb.kb8) {
+                    // Kịch bản 8: Phối hợp 3 điều kiện vượt Action Masking
+                    const bOpen = sb.kb8.bypassOpen !== false;
+                    const bCap = sb.kb8.bypassCap !== false;
+                    const bLmax = sb.kb8.bypassLmax !== false;
+                    for (let i = 0; i < this.numWarehouses; i++) {
+                        const actuallyInvalid =
+                            realState.openStatus[i] === 0 ||
+                            realState.capacity[i] < realState.demand[customerIdx] ||
+                            realState.servedCount[i] >= this.warehouses[i].lmax;
+                        if (actuallyInvalid) {
+                            obs.openStatus[i] = bOpen ? 1 : realState.openStatus[i];
+                            obs.capacity[i] = bCap ? realState.demand[customerIdx] + 130 : realState.capacity[i];
+                            obs.servedCount[i] = bLmax ? 0 : realState.servedCount[i];
+                            if (bOpen && bCap && bLmax) {
+                                obs.costMatrix[i][customerIdx] = 11;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Áp dụng các thao tác can thiệp trực tiếp của người thuyết trình (Live Interactive Override trên giao diện)

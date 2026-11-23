@@ -43,6 +43,9 @@
                     <span class="sb-dot" id="sb-status-dot"></span>
                     <span id="sb-status-label">Route: #/dashboard</span>
                 </button>
+                <a href="/attack-sandbox" target="_blank" class="btn-danger-glow btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    <span>Mở Trang 2 (/attack-sandbox) Song Song ↗</span>
+                </a>
             </div>
         </div>
     </header>
@@ -210,10 +213,21 @@
                         <span id="wf-banner-badge" class="status-pill status-err">CHẾ ĐỘ: M1 – BỊ TẤN CÔNG</span>
                     </div>
 
-                    <!-- BẢNG THAO TÁC BƠM NHIỄU TRỰC TIẾP (CHỈ HIỂN THỊ ĐÚNG THAO TÁC CỦA KỊCH BẢN ĐANG CHỌN) -->
-                    <div id="hacker-live-console" class="hacker-live-console">
+                    <!-- THANH TRẠNG THÁI ĐỒNG BỘ THỜI GIAN THỰC VỚI TRANG 2 (/attack-sandbox) (GIỮ TRANG 1 SẠCH SẼ KHI THUYẾT TRÌNH) -->
+                    <div id="dashboard-realtime-sync-bar" style="margin-top: 10px; padding: 11px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 9px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <strong style="color: #6ee7b7; font-size: 13px;">TRANG 1 (/dashboard): MÀN HÌNH THEO DÕI &amp; TRÌNH CHIẾU (ĐỒNG BỘ THỜI GIAN THỰC 0ms)</strong>
+                            <div id="dashboard-sync-last-event" style="font-size: 12px; color: #cbd5e1; margin-top: 2px;">
+                                Đang lắng nghe lệnh điều khiển thời gian thực từ Trang 2 (<code>/attack-sandbox</code>). Mở 2 trang song song để thao tác công tắc kho và phát lệnh.
+                            </div>
+                        </div>
+                        <a href="/attack-sandbox" target="_blank" class="btn-danger-glow btn-sm" style="text-decoration: none;">
+                            Mở Trang Thao Tác Tấn Công (/attack-sandbox) Song Song ↗
+                        </a>
+                    </div>
+                    <div id="hacker-live-console" class="hacker-live-console" style="display: none;">
                         <div class="hacker-console-head">
-                            <strong id="hacker-console-scenario-title">THAO TÁC TẤN CÔNG KỊCH BẢN 1 TRÊN ĐƠN HÀNG ĐANG CHỌN (<span id="hack-target-order-label">Đơn hàng #1 - U1</span>):</strong>
+                            <strong id="hacker-console-scenario-title"></strong>
                         </div>
                         <div id="hacker-actions-bar" class="hacker-actions-bar"></div>
                     </div>
@@ -283,28 +297,20 @@
                     </div>
                 </div>
 
-                <!-- KHỐI 2: CÁC BƯỚC TẤN CÔNG & CỬA SỔ TIÊM LỆNH TRỰC TIẾP (COMMAND INJECTION TERMINAL) -->
+                <!-- KHỐI 2: CÁC BƯỚC TẤN CÔNG & GÓI TIN NHẬN TỪ TRANG 2 (/attack-sandbox) -->
                 <div class="story-card story-attack io-card">
                     <div class="story-card-head" style="color: #fb923c; display: flex; justify-content: space-between; align-items: center;">
-                        <span>2. CÁC BƯỚC TẤN CÔNG &amp; CỬA SỔ TIÊM LỆNH (COMMAND INJECTION)</span>
+                        <span>2. CÁC BƯỚC TẤN CÔNG &amp; GÓI TIN NHẬN TỪ /attack-sandbox</span>
                         <span id="terminal-scenario-tag" class="code-pill">Kịch bản 1</span>
                     </div>
                     <ul id="story-attack-steps" class="interactive-steps-list"></ul>
                     <code id="story-attack-formula" class="formula-chip"></code>
                     <div class="io-data-panel">
                         <div class="io-panel-title" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Cửa sổ Tiêm Lệnh &amp; Payload Tấn Công (Có thể sửa trực tiếp tham số lệnh):</span>
-                            <button id="btn-reset-terminal-cmd" class="btn-secondary btn-xs">Khôi Phục Lệnh Mẫu</button>
+                            <span>Gói tin Payload đang nhận thời gian thực từ Trang 2 (/attack-sandbox):</span>
+                            <a href="/attack-sandbox" target="_blank" class="btn-secondary btn-xs" style="text-decoration: none;">Mở /attack-sandbox ↗</a>
                         </div>
-                        <textarea id="scenario-command-terminal" class="command-terminal-input" rows="5" spellcheck="false"></textarea>
-                        <div class="terminal-exec-bar">
-                            <button id="btn-exec-terminal-attack" class="btn-danger-glow btn-sm">
-                                Thực Thi Lệnh Tiêm Vào Mạng DQN (Chạy M1)
-                            </button>
-                            <button id="btn-exec-terminal-stealth" class="btn-secondary btn-sm">
-                                Tiêm Lệnh + Xóa Dấu Vết Log
-                            </button>
-                        </div>
+                        <textarea id="scenario-command-terminal" class="command-terminal-input" rows="5" spellcheck="false" readonly></textarea>
                     </div>
                 </div>
 

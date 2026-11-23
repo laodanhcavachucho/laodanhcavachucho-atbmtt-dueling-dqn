@@ -260,6 +260,7 @@ let autoDemoTimer = null;
 let manualOverridesState = {};
 let warehouseOverridesState = {};
 let customerDemandOverridesState = {};
+let sandboxConfigState = {};
 let supabaseService = null;
 let activeSupabaseTable = 'don_hang_phan_bo';
 let cachedSqlSchemaText = '';
@@ -281,6 +282,7 @@ function initApp() {
     loadBackendSecurityMetrics();
     initStealthForensicsTab();
     initInteractiveIOWorkbench();
+    initRealtimeSandboxBridge();
 }
 
 function rebuildEngineFromControls() {
@@ -294,7 +296,8 @@ function rebuildEngineFromControls() {
         attackIntensity: Number(intensityInput ? intensityInput.value : 0.30),
         manualOverrides: manualOverridesState,
         warehouseOverrides: warehouseOverridesState,
-        customerDemandOverrides: customerDemandOverridesState
+        customerDemandOverrides: customerDemandOverridesState,
+        sandboxConfig: sandboxConfigState
     });
 
     allSummary = engine.runAllScenariosSummary();
@@ -4444,6 +4447,110 @@ window.highlightStepInTerminal = function (stepIdx) {
     const targetLineIdx = Math.min(lines.length - 1, stepIdx + 1);
     lines[targetLineIdx] = lines[targetLineIdx] + `  /* <-- ĐANG CHỌN BƯỚC ${String.fromCharCode(65 + stepIdx)} */`;
     term.value = lines.join('\n');
-    term.focus();
-    showToast(`Đã nạp lệnh của Bước ${String.fromCharCode(65 + stepIdx)} vào Cửa sổ Tiêm Lệnh. Bấm "Thực Thi Lệnh Tiêm" để chạy!`);
 };
+
+/**
+ * KẾT NỐI ĐỒNG BỘ THỜI GIAN THỰC (0ms) GIỮA TRANG 1 (/dashboard) VÀ TRANG 2 (/attack-sandbox)
+ */
+function initRealtimeSandboxBridge() {
+    const CHANNEL_NAME = 'vietlogix_realtime_attack_bus_v1';
+    const STORAGE_KEY = 'vietlogix_live_attack_state_v1';
+
+    function applyIncomingSandboxPacket(packet, isInitialLoad = false) {
+        if (!packet || !packet.state) return;
+        const st = packet.state;
+
+        if (st.activeScenario && st.activeScenario >= 1 && st.activeScenario <= 9) {
+            currentScenarioId = Number(st.activeScenario);
+        }
+        if (st.modelMode && ['M0', 'M1', 'M2', 'M3'].includes(st.modelMode)) {
+            currentModelMode = st.modelMode;
+            currentWorkflowStep = st.modelMode === 'M0' ? 1 : st.modelMode === 'M1' ? 3 : st.modelMode === 'M2' ? 4 : 5;
+        }
+        if (st.selectedOrderStep && st.selectedOrderStep >= 1 && st.selectedOrderStep <= 50) {
+            selectedOrderStep = Number(st.selectedOrderStep);
+        }
+        if (typeof st.epsilonFGSM === 'number') {
+            const epsEl = document.getElementById('input-epsilon');
+            const lblEps = document.getElementById('label-epsilon');
+            if (epsEl) epsEl.value = String(st.epsilonFGSM);
+            if (lblEps) lblEps.textContent = `ε = ${st.epsilonFGSM.toFixed(2)}`;
+        }
+        if (typeof st.attackIntensity === 'number') {
+            const intEl = document.getElementById('input-intensity');
+            const lblInt = document.getElementById('label-intensity');
+            if (intEl) intEl.value = String(st.attackIntensity);
+            if (lblInt) lblInt.textContent = `${Math.round(st.attackIntensity * 100)}%`;
+        }
+        if (typeof st.wipeLogs === 'boolean') {
+            isTab1LogWipedByTerminal = st.wipeLogs;
+        }
+
+        sandboxConfigState = st.sandboxConfig || {};
+
+        // Nếu Kịch bản 9 tắt Model B thì chuyển về M0
+        if (
+            currentScenarioId === 9 &&
+            sandboxConfigState.kb9 &&
+            sandboxConfigState.kb9.usePoisonedModelB === false &&
+            currentModelMode === 'M1'
+        ) {
+            currentModelMode = 'M0';
+            currentWorkflowStep = 1;
+        }
+
+        stopAllTimers();
+        rebuildEngineFromControls();
+        updateCurrentSimulation(!isInitialLoad);
+        renderAllScenarioReportCards();
+        renderChapter4SummaryTables();
+
+        // Cập nhật dòng trạng thái đồng bộ trên Trang 1 (/dashboard)
+        const syncTextEl = document.getElementById('dashboard-sync-last-event');
+        if (syncTextEl) {
+            const timeStr = packet.timestamp
+                ? new Date(packet.timestamp).toLocaleTimeString('vi-VN')
+                : new Date().toLocaleTimeString('vi-VN');
+            syncTextEl.innerHTML =
+                `Đã nhận lệnh thời gian thực từ <code>/attack-sandbox</code> lúc <strong>${timeStr}</strong>: ` +
+                `<strong style="color:#fca5a5;">${packet.reason || 'Cập nhật tham số công tắc'}</strong> ` +
+                `(Kịch bản ${currentScenarioId} • Chế độ ${currentModelMode} • Đơn hàng U${selectedOrderStep})`;
+        }
+
+        // Cập nhật ô hiển thị Payload nhận từ /attack-sandbox trong Khối 2
+        const term = document.getElementById('scenario-command-terminal');
+        if (term && sandboxConfigState[`kb${currentScenarioId}`]) {
+            term.value =
+                `// GÓI TIN NHẬN TRỰC TIẾP TỪ TRANG 2 (/attack-sandbox) LÚC ${new Date().toLocaleTimeString('vi-VN')}\n` +
+                `// Kịch bản ${currentScenarioId} | Chế độ: ${currentModelMode} | Đơn mục tiêu: U${selectedOrderStep} | Xóa dấu vết Log: ${isTab1LogWipedByTerminal ? 'BẬT' : 'TẮT'}\n` +
+                JSON.stringify(sandboxConfigState[`kb${currentScenarioId}`], null, 2);
+        }
+
+        if (!isInitialLoad && typeof showToast === 'function') {
+            showToast(`[Đồng bộ /attack-sandbox] ${packet.reason || 'Đã cập nhật dữ liệu mới'}`);
+        }
+    }
+
+    if (typeof BroadcastChannel !== 'undefined') {
+        const ch = new BroadcastChannel(CHANNEL_NAME);
+        ch.addEventListener('message', (ev) => {
+            if (ev.data && ev.data.type === 'VIETLOGIX_SANDBOX_SYNC') {
+                applyIncomingSandboxPacket(ev.data, false);
+            }
+        });
+    }
+
+    window.addEventListener('storage', (ev) => {
+        if (ev.key === STORAGE_KEY && ev.newValue) {
+            try {
+                const parsed = JSON.parse(ev.newValue);
+                if (parsed && parsed.type === 'VIETLOGIX_SANDBOX_SYNC') {
+                    applyIncomingSandboxPacket(parsed, false);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+    });
+}
+
