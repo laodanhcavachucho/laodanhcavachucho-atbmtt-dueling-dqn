@@ -184,7 +184,7 @@ function populateOrderSelect() {
     sbEngine.customers.forEach((c, idx) => {
         const opt = document.createElement('option');
         opt.value = String(idx + 1);
-        opt.textContent = `Đơn hàng #${idx + 1} – ${c.code} (${c.name} | Nhu cầu: ${c.demand} tấn)`;
+        opt.textContent = `Đơn hàng #${idx + 1} – ${c.code} (${c.name} | Nhu cầu: ${c.initialDemand} tấn)`;
         if (idx + 1 === sandboxState.selectedOrderStep) opt.selected = true;
         select.appendChild(opt);
     });
@@ -210,7 +210,7 @@ function renderScenarioSpecificControls() {
             return `
                 <div class="wh-toggle-card ${isFlipped ? 'spoof-active' : ''}">
                     <div class="wh-toggle-card-head">
-                        <strong style="color:#f8fafc;font-size:13px;">Kho ${w.code} (${w.regionName})</strong>
+                        <strong style="color:#f8fafc;font-size:13px;">Kho ${w.code} (${w.region})</strong>
                         <span class="status-pill ${isFlipped ? 'status-err' : 'status-ok'}">
                             ${isFlipped ? 'O_obs = 1 (Giả mở)' : 'O_obs = 0 (Chuẩn)'}
                         </span>
@@ -374,7 +374,7 @@ function renderScenarioSpecificControls() {
     if (sc === 4) {
         const c = sbEngine.customers[sandboxState.selectedOrderStep - 1];
         const isEven = (sandboxState.selectedOrderStep - 1) % 2 === 0;
-        const dObs = Math.round(c.demand * (isEven ? sandboxState.kb4.evenFactor : sandboxState.kb4.oddFactor));
+        const dObs = Math.round(c.initialDemand * (isEven ? sandboxState.kb4.evenFactor : sandboxState.kb4.oddFactor));
         container.innerHTML = `
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div style="padding:12px;background:#0b1324;border:1px solid var(--border-color);border-radius:8px;">
@@ -397,7 +397,7 @@ function renderScenarioSpecificControls() {
             <div style="margin-top:12px;padding:12px;background:#0b1324;border:1px solid var(--border-color);border-radius:8px;">
                 <strong style="font-size:12.5px;color:#e2e8f0;">Đơn hàng đang chọn (${c.code} – ${c.name}):</strong>
                 <div style="margin-top:6px;font-size:13px;color:#cbd5e1;">
-                    Nhu cầu đặt hàng gốc: <code>D_real = ${c.demand} tấn</code> ➔ Nhu cầu giả mạo gửi sang DQN: <code style="color:#f87171;font-weight:700;">D_obs = ${dObs} tấn</code>
+                    Nhu cầu đặt hàng gốc: <code>D_real = ${c.initialDemand} tấn</code> ➔ Nhu cầu giả mạo gửi sang DQN: <code style="color:#f87171;font-weight:700;">D_obs = ${dObs} tấn</code>
                 </div>
             </div>
         `;
@@ -640,27 +640,19 @@ function updatePayloadAndImpactPreview() {
     rebuildSandboxEngine();
     const sc = sandboxState.activeScenario;
     const mode = sandboxState.modelMode;
-    const simResult = sbEngine.simulateScenario(sc, mode);
-    const stepLog = simResult.stepLogs[sandboxState.selectedOrderStep - 1] || simResult.stepLogs[0];
-    const m0Log = simResult.allModels.M0.stepLogs[sandboxState.selectedOrderStep - 1] || simResult.allModels.M0.stepLogs[0];
+    const simResult = sbEngine.runSimulation(sc, mode);
+    const m0Result = sbEngine.runSimulation(sc, 'M0');
+    const stepIdx = Math.max(0, Math.min(49, sandboxState.selectedOrderStep - 1));
+    const stepLog = simResult.stepLogs[stepIdx] || simResult.stepLogs[0];
+    const m0Log = m0Result.stepLogs[stepIdx] || m0Result.stepLogs[0];
 
     // 1. Vector Diff Box
     const diffBox = document.getElementById('sb-vector-diff-box');
-    if (diffBox && stepLog) {
-        const wChosen = sbEngine.warehouses[stepLog.chosenWarehouseIdx];
-        const wClean = sbEngine.warehouses[m0Log.chosenWarehouseIdx];
-        const obsState = sbEngine.buildObservedState(
-            stepLog.customerIdx,
-            sc,
-            mode,
-            wChosen.initialCapacity,
-            0
-        );
-        const targetIdx = stepLog.chosenWarehouseIdx;
+    if (diffBox && stepLog && m0Log) {
         diffBox.innerHTML =
-            `<div><strong>[Đơn hàng #${stepLog.step} – ${stepLog.customerCode} (${stepLog.customerName})]</strong> | Nhu cầu thực: <code>D_real = ${stepLog.realDemand}t</code> → Quan sát: <code style="color:${obsState.obsDemand !== stepLog.realDemand ? '#f87171' : '#34d399'};">D_obs = ${obsState.obsDemand}t</code></div>` +
-            `<div>• Kho sạch tối ưu (M0): <code>${wClean.code} (Cước ${m0Log.realTransportCost} đv, Q = +${m0Log.chosenQScore})</code></div>` +
-            `<div>• Kho AI chọn hiện tại (${mode}): <code style="color:${stepLog.isInvalidAction || stepLog.chosenWarehouseIdx !== m0Log.chosenWarehouseIdx ? '#f87171' : '#34d399'};font-weight:700;">${wChosen.code}</code> | <code>O_real=${wChosen.openReal} → O_obs=${obsState.obsOpen[targetIdx]}</code> | <code>C_real=${stepLog.realTransportCost} → C_obs=${obsState.obsCostRow[targetIdx]}</code> | <code>Cap_obs=${obsState.obsCap[targetIdx]}t</code></div>`;
+            `<div><strong>[Đơn hàng #${stepLog.step} – ${stepLog.customerCode} (${stepLog.customerName})]</strong> | Nhu cầu thực: <code>D_real = ${stepLog.realDemand}t</code> → Quan sát: <code style="color:${stepLog.observedDemand !== stepLog.realDemand ? '#f87171' : '#34d399'};">D_obs = ${stepLog.observedDemand}t</code></div>` +
+            `<div>• Kho sạch tối ưu (M0): <code>${m0Log.finalWarehouse} (Cước ${m0Log.realCost} đv, Q = +${m0Log.qValue})</code></div>` +
+            `<div>• Kho AI chọn hiện tại (${mode}): <code style="color:${stepLog.isInvalidProposal || stepLog.finalWarehouse !== m0Log.finalWarehouse ? '#f87171' : '#34d399'};font-weight:700;">${stepLog.proposedWarehouse} → Thực thi: ${stepLog.finalWarehouse}</code> | <code>${stepLog.explain.realValStr} ➔ ${stepLog.explain.spoofedValStr}</code></div>`;
     }
 
     // 2. Payload Editor
@@ -688,22 +680,22 @@ function updatePayloadAndImpactPreview() {
     const vioEl = document.getElementById('sb-preview-violations');
 
     if (orderEl && stepLog) {
-        orderEl.textContent = `${stepLog.customerCode} → Kho ${stepLog.chosenWarehouseCode}`;
+        orderEl.textContent = `${stepLog.customerCode} → Kho ${stepLog.finalWarehouse} (Đề xuất: ${stepLog.proposedWarehouse})`;
     }
     if (qEl && stepLog) {
-        qEl.textContent = `Q = ${stepLog.chosenQScore >= 0 ? '+' : ''}${stepLog.chosenQScore} (${stepLog.isInvalidAction ? stepLog.violationLabel : 'Hợp lệ'})`;
-        qEl.style.color = stepLog.isInvalidAction ? '#f87171' : '#34d399';
+        qEl.textContent = `Q = ${stepLog.qValue >= 0 ? '+' : ''}${stepLog.qValue} (${stepLog.status})`;
+        qEl.style.color = stepLog.isInvalidProposal || stepLog.status !== 'HỢP LỆ' ? '#f87171' : '#34d399';
     }
     if (tacEl) {
-        const m0Tac = simResult.allModels.M0.kpis.TAC;
-        const curTac = simResult.kpis.TAC;
-        const pct = (((curTac - m0Tac) / m0Tac) * 100).toFixed(1);
+        const m0Tac = m0Result.metrics.TAC;
+        const curTac = simResult.metrics.TAC;
+        const pct = (((curTac - m0Tac) / Math.max(1, m0Tac)) * 100).toFixed(1);
         tacEl.textContent = `${curTac.toLocaleString('vi-VN')} (${curTac >= m0Tac ? '+' : ''}${pct}%)`;
         tacEl.style.color = curTac > m0Tac * 1.15 ? '#fb923c' : '#34d399';
     }
     if (vioEl) {
-        vioEl.textContent = `UD: ${simResult.kpis.UD}t | CV: ${simResult.kpis.CV} | LV: ${simResult.kpis.LV} | IR: ${simResult.kpis.IR}%`;
-        vioEl.style.color = simResult.kpis.IR > 0 || simResult.kpis.UD > 0 ? '#f87171' : '#34d399';
+        vioEl.textContent = `UD: ${simResult.metrics.UD}t | CV: ${simResult.metrics.CV} | LV: ${simResult.metrics.LV} | IR: ${simResult.metrics.IR}%`;
+        vioEl.style.color = simResult.metrics.IR > 0 || simResult.metrics.UD > 0 ? '#f87171' : '#34d399';
     }
 }
 
@@ -769,6 +761,9 @@ function syncTopControlsUI() {
         btn.classList.toggle('active', m === sandboxState.modelMode);
     });
 
+    const orderSel = document.getElementById('sandbox-select-order');
+    if (orderSel) orderSel.value = String(sandboxState.selectedOrderStep);
+
     const epsInput = document.getElementById('sb-input-epsilon');
     const intInput = document.getElementById('sb-input-intensity');
     const epsLbl = document.getElementById('sb-label-eps');
@@ -785,21 +780,79 @@ function syncTopControlsUI() {
     if (wipeChk) wipeChk.checked = sandboxState.wipeLogs;
 }
 
+function applyIncomingDashboardState(packet) {
+    if (!packet || !packet.state) return;
+    const st = packet.state;
+    let changed = false;
+
+    if (st.activeScenario && st.activeScenario >= 1 && st.activeScenario <= 9 && st.activeScenario !== sandboxState.activeScenario) {
+        sandboxState.activeScenario = Number(st.activeScenario);
+        changed = true;
+    }
+    if (st.modelMode && ['M0', 'M1', 'M2', 'M3'].includes(st.modelMode) && st.modelMode !== sandboxState.modelMode) {
+        sandboxState.modelMode = st.modelMode;
+        changed = true;
+    }
+    if (st.selectedOrderStep && st.selectedOrderStep >= 1 && st.selectedOrderStep <= 50 && st.selectedOrderStep !== sandboxState.selectedOrderStep) {
+        sandboxState.selectedOrderStep = Number(st.selectedOrderStep);
+        changed = true;
+    }
+    if (typeof st.epsilonFGSM === 'number' && Math.abs(st.epsilonFGSM - sandboxState.epsilonFGSM) > 0.001) {
+        sandboxState.epsilonFGSM = Number(st.epsilonFGSM);
+        changed = true;
+    }
+    if (typeof st.attackIntensity === 'number' && Math.abs(st.attackIntensity - sandboxState.attackIntensity) > 0.001) {
+        sandboxState.attackIntensity = Number(st.attackIntensity);
+        changed = true;
+    }
+
+    syncTopControlsUI();
+    renderScenarioSpecificControls();
+    updatePayloadAndImpactPreview();
+
+    const statusEl = document.getElementById('sandbox-sync-status');
+    if (statusEl) {
+        statusEl.textContent = `ĐÃ ĐỒNG BỘ TỪ TRANG 1 (/dashboard): Kịch bản ${sandboxState.activeScenario} • ${sandboxState.modelMode} • Đơn U${sandboxState.selectedOrderStep}`;
+    }
+    if (changed) {
+        showSandboxToast(`[Đồng bộ từ Trang 1] Kịch bản ${sandboxState.activeScenario} • Chế độ ${sandboxState.modelMode} • Đơn U${sandboxState.selectedOrderStep}`);
+    }
+}
+
 function initAttackSandboxPage() {
     if (typeof BroadcastChannel !== 'undefined') {
         sbChannel = new BroadcastChannel(SANDBOX_CHANNEL_NAME);
+        sbChannel.addEventListener('message', (ev) => {
+            if (ev.data && ev.data.type === 'VIETLOGIX_DASHBOARD_TO_SANDBOX_SYNC') {
+                applyIncomingDashboardState(ev.data);
+            }
+        });
     }
 
-    // Khôi phục state gần nhất nếu có
-    try {
-        const raw = localStorage.getItem(SANDBOX_STORAGE_KEY);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && parsed.state) {
-                sandboxState.activeScenario = parsed.state.activeScenario || 1;
-                sandboxState.modelMode = parsed.state.modelMode || 'M1';
-                sandboxState.selectedOrderStep = parsed.state.selectedOrderStep || 1;
+    window.addEventListener('storage', (ev) => {
+        if (ev.key === 'vietlogix_dashboard_to_sandbox_v1' && ev.newValue) {
+            try {
+                const parsed = JSON.parse(ev.newValue);
+                if (parsed && parsed.type === 'VIETLOGIX_DASHBOARD_TO_SANDBOX_SYNC') {
+                    applyIncomingDashboardState(parsed);
+                }
+            } catch (e) {
+                // ignore
             }
+        }
+    });
+
+    // Khôi phục state gần nhất từ Trang 1 (/dashboard) hoặc từ lần thao tác trước
+    try {
+        const dashRaw = localStorage.getItem('vietlogix_dashboard_to_sandbox_v1');
+        const sbRaw = localStorage.getItem(SANDBOX_STORAGE_KEY);
+        const parsed = dashRaw ? JSON.parse(dashRaw) : sbRaw ? JSON.parse(sbRaw) : null;
+        if (parsed && parsed.state) {
+            sandboxState.activeScenario = parsed.state.activeScenario || 1;
+            sandboxState.modelMode = parsed.state.modelMode || 'M1';
+            sandboxState.selectedOrderStep = parsed.state.selectedOrderStep || 1;
+            if (typeof parsed.state.epsilonFGSM === 'number') sandboxState.epsilonFGSM = parsed.state.epsilonFGSM;
+            if (typeof parsed.state.attackIntensity === 'number') sandboxState.attackIntensity = parsed.state.attackIntensity;
         }
     } catch (e) {
         // ignore

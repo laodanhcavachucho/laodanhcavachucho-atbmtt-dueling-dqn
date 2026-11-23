@@ -261,6 +261,8 @@ let manualOverridesState = {};
 let warehouseOverridesState = {};
 let customerDemandOverridesState = {};
 let sandboxConfigState = {};
+let isApplyingRemoteSandboxSync = false;
+let dashboardSyncChannel = null;
 let supabaseService = null;
 let activeSupabaseTable = 'don_hang_phan_bo';
 let cachedSqlSchemaText = '';
@@ -830,6 +832,38 @@ function updateCurrentSimulation(withFlash = false) {
     if (withFlash) {
         triggerVisualFlash('kpi-grid-container');
     }
+
+    broadcastDashboardStateToSandbox();
+}
+
+function broadcastDashboardStateToSandbox(reasonText = 'Cập nhật từ Trang 1 (/dashboard)') {
+    if (isApplyingRemoteSandboxSync) return;
+    const epsInput = document.getElementById('input-epsilon');
+    const intensityInput = document.getElementById('input-intensity');
+    const packet = {
+        type: 'VIETLOGIX_DASHBOARD_TO_SANDBOX_SYNC',
+        timestamp: new Date().toISOString(),
+        reason: reasonText,
+        state: {
+            activeScenario: currentScenarioId,
+            modelMode: currentModelMode,
+            selectedOrderStep: selectedOrderStep,
+            epsilonFGSM: Number(epsInput ? epsInput.value : 0.15),
+            attackIntensity: Number(intensityInput ? intensityInput.value : 0.30)
+        }
+    };
+    try {
+        localStorage.setItem('vietlogix_dashboard_to_sandbox_v1', JSON.stringify(packet));
+    } catch (e) {
+        // ignore
+    }
+    if (dashboardSyncChannel) {
+        try {
+            dashboardSyncChannel.postMessage(packet);
+        } catch (e) {
+            // ignore
+        }
+    }
 }
 
 function renderTopKpiCards(simRes, baseRes) {
@@ -881,6 +915,8 @@ function updateStepView(stepNumber, withFlash = false) {
         `Đơn hàng #${selectedOrderStep}/50: ${log.customerName} (${log.realDemand} tấn) → ${log.finalWarehouse}`;
     document.getElementById('inspector-order-badge').textContent =
         `Đang soi: Đơn #${selectedOrderStep} (${log.customerCode} • Cần ${log.realDemand} tấn • Cấu hình ${currentModelMode})`;
+
+    broadcastDashboardStateToSandbox(`Chọn Đơn hàng U${selectedOrderStep} trên Trang 1`);
 
     const alertBox = document.getElementById('live-incident-alert');
     alertBox.innerHTML = `<strong>📡 DIỄN BIẾN HIỆN TRƯỜNG (ĐƠN HÀNG #${selectedOrderStep} - ${log.customerName} • Chế độ ${currentModelMode}):</strong><br/>${log.explain.businessNarrative}`;
@@ -4458,82 +4494,91 @@ function initRealtimeSandboxBridge() {
 
     function applyIncomingSandboxPacket(packet, isInitialLoad = false) {
         if (!packet || !packet.state) return;
-        const st = packet.state;
+        isApplyingRemoteSandboxSync = true;
+        try {
+            const st = packet.state;
 
-        if (st.activeScenario && st.activeScenario >= 1 && st.activeScenario <= 9) {
-            currentScenarioId = Number(st.activeScenario);
-        }
-        if (st.modelMode && ['M0', 'M1', 'M2', 'M3'].includes(st.modelMode)) {
-            currentModelMode = st.modelMode;
-            currentWorkflowStep = st.modelMode === 'M0' ? 1 : st.modelMode === 'M1' ? 3 : st.modelMode === 'M2' ? 4 : 5;
-        }
-        if (st.selectedOrderStep && st.selectedOrderStep >= 1 && st.selectedOrderStep <= 50) {
-            selectedOrderStep = Number(st.selectedOrderStep);
-        }
-        if (typeof st.epsilonFGSM === 'number') {
-            const epsEl = document.getElementById('input-epsilon');
-            const lblEps = document.getElementById('label-epsilon');
-            if (epsEl) epsEl.value = String(st.epsilonFGSM);
-            if (lblEps) lblEps.textContent = `ε = ${st.epsilonFGSM.toFixed(2)}`;
-        }
-        if (typeof st.attackIntensity === 'number') {
-            const intEl = document.getElementById('input-intensity');
-            const lblInt = document.getElementById('label-intensity');
-            if (intEl) intEl.value = String(st.attackIntensity);
-            if (lblInt) lblInt.textContent = `${Math.round(st.attackIntensity * 100)}%`;
-        }
-        if (typeof st.wipeLogs === 'boolean') {
-            isTab1LogWipedByTerminal = st.wipeLogs;
-        }
+            if (st.activeScenario && st.activeScenario >= 1 && st.activeScenario <= 9) {
+                currentScenarioId = Number(st.activeScenario);
+                const scenarioSelect = document.getElementById('select-scenario');
+                if (scenarioSelect) scenarioSelect.value = String(currentScenarioId);
+            }
+            if (st.modelMode && ['M0', 'M1', 'M2', 'M3'].includes(st.modelMode)) {
+                currentModelMode = st.modelMode;
+                currentWorkflowStep = st.modelMode === 'M0' ? 1 : st.modelMode === 'M1' ? 3 : st.modelMode === 'M2' ? 4 : 5;
+            }
+            if (st.selectedOrderStep && st.selectedOrderStep >= 1 && st.selectedOrderStep <= 50) {
+                selectedOrderStep = Number(st.selectedOrderStep);
+                const slider = document.getElementById('slider-step');
+                if (slider) slider.value = String(selectedOrderStep);
+            }
+            if (typeof st.epsilonFGSM === 'number') {
+                const epsEl = document.getElementById('input-epsilon');
+                const lblEps = document.getElementById('label-epsilon');
+                if (epsEl) epsEl.value = String(st.epsilonFGSM);
+                if (lblEps) lblEps.textContent = `ε = ${st.epsilonFGSM.toFixed(2)}`;
+            }
+            if (typeof st.attackIntensity === 'number') {
+                const intEl = document.getElementById('input-intensity');
+                const lblInt = document.getElementById('label-intensity');
+                if (intEl) intEl.value = String(st.attackIntensity);
+                if (lblInt) lblInt.textContent = `${Math.round(st.attackIntensity * 100)}%`;
+            }
+            if (typeof st.wipeLogs === 'boolean') {
+                isTab1LogWipedByTerminal = st.wipeLogs;
+            }
 
-        sandboxConfigState = st.sandboxConfig || {};
+            sandboxConfigState = st.sandboxConfig || {};
 
-        // Nếu Kịch bản 9 tắt Model B thì chuyển về M0
-        if (
-            currentScenarioId === 9 &&
-            sandboxConfigState.kb9 &&
-            sandboxConfigState.kb9.usePoisonedModelB === false &&
-            currentModelMode === 'M1'
-        ) {
-            currentModelMode = 'M0';
-            currentWorkflowStep = 1;
-        }
+            // Nếu Kịch bản 9 tắt Model B thì chuyển về M0
+            if (
+                currentScenarioId === 9 &&
+                sandboxConfigState.kb9 &&
+                sandboxConfigState.kb9.usePoisonedModelB === false &&
+                currentModelMode === 'M1'
+            ) {
+                currentModelMode = 'M0';
+                currentWorkflowStep = 1;
+            }
 
-        stopAllTimers();
-        rebuildEngineFromControls();
-        updateCurrentSimulation(!isInitialLoad);
-        renderAllScenarioReportCards();
-        renderChapter4SummaryTables();
+            stopAllTimers();
+            rebuildEngineFromControls();
+            updateCurrentSimulation(!isInitialLoad);
+            renderAllScenarioReportCards();
+            renderChapter4SummaryTables();
 
-        // Cập nhật dòng trạng thái đồng bộ trên Trang 1 (/dashboard)
-        const syncTextEl = document.getElementById('dashboard-sync-last-event');
-        if (syncTextEl) {
-            const timeStr = packet.timestamp
-                ? new Date(packet.timestamp).toLocaleTimeString('vi-VN')
-                : new Date().toLocaleTimeString('vi-VN');
-            syncTextEl.innerHTML =
-                `Đã nhận lệnh thời gian thực từ <code>/attack-sandbox</code> lúc <strong>${timeStr}</strong>: ` +
-                `<strong style="color:#fca5a5;">${packet.reason || 'Cập nhật tham số công tắc'}</strong> ` +
-                `(Kịch bản ${currentScenarioId} • Chế độ ${currentModelMode} • Đơn hàng U${selectedOrderStep})`;
-        }
+            // Cập nhật dòng trạng thái đồng bộ trên Trang 1 (/dashboard)
+            const syncTextEl = document.getElementById('dashboard-sync-last-event');
+            if (syncTextEl) {
+                const timeStr = packet.timestamp
+                    ? new Date(packet.timestamp).toLocaleTimeString('vi-VN')
+                    : new Date().toLocaleTimeString('vi-VN');
+                syncTextEl.innerHTML =
+                    `Đã nhận lệnh thời gian thực từ <code>/attack-sandbox</code> lúc <strong>${timeStr}</strong>: ` +
+                    `<strong style="color:#fca5a5;">${packet.reason || 'Cập nhật tham số công tắc'}</strong> ` +
+                    `(Kịch bản ${currentScenarioId} • Chế độ ${currentModelMode} • Đơn hàng U${selectedOrderStep})`;
+            }
 
-        // Cập nhật ô hiển thị Payload nhận từ /attack-sandbox trong Khối 2
-        const term = document.getElementById('scenario-command-terminal');
-        if (term && sandboxConfigState[`kb${currentScenarioId}`]) {
-            term.value =
-                `// GÓI TIN NHẬN TRỰC TIẾP TỪ TRANG 2 (/attack-sandbox) LÚC ${new Date().toLocaleTimeString('vi-VN')}\n` +
-                `// Kịch bản ${currentScenarioId} | Chế độ: ${currentModelMode} | Đơn mục tiêu: U${selectedOrderStep} | Xóa dấu vết Log: ${isTab1LogWipedByTerminal ? 'BẬT' : 'TẮT'}\n` +
-                JSON.stringify(sandboxConfigState[`kb${currentScenarioId}`], null, 2);
-        }
+            // Cập nhật ô hiển thị Payload nhận từ /attack-sandbox trong Khối 2
+            const term = document.getElementById('scenario-command-terminal');
+            if (term && sandboxConfigState[`kb${currentScenarioId}`]) {
+                term.value =
+                    `// GÓI TIN NHẬN TRỰC TIẾP TỪ TRANG 2 (/attack-sandbox) LÚC ${new Date().toLocaleTimeString('vi-VN')}\n` +
+                    `// Kịch bản ${currentScenarioId} | Chế độ: ${currentModelMode} | Đơn mục tiêu: U${selectedOrderStep} | Xóa dấu vết Log: ${isTab1LogWipedByTerminal ? 'BẬT' : 'TẮT'}\n` +
+                    JSON.stringify(sandboxConfigState[`kb${currentScenarioId}`], null, 2);
+            }
 
-        if (!isInitialLoad && typeof showToast === 'function') {
-            showToast(`[Đồng bộ /attack-sandbox] ${packet.reason || 'Đã cập nhật dữ liệu mới'}`);
+            if (!isInitialLoad && typeof showToast === 'function') {
+                showToast(`[Đồng bộ /attack-sandbox] ${packet.reason || 'Đã cập nhật dữ liệu mới'}`);
+            }
+        } finally {
+            isApplyingRemoteSandboxSync = false;
         }
     }
 
     if (typeof BroadcastChannel !== 'undefined') {
-        const ch = new BroadcastChannel(CHANNEL_NAME);
-        ch.addEventListener('message', (ev) => {
+        dashboardSyncChannel = new BroadcastChannel(CHANNEL_NAME);
+        dashboardSyncChannel.addEventListener('message', (ev) => {
             if (ev.data && ev.data.type === 'VIETLOGIX_SANDBOX_SYNC') {
                 applyIncomingSandboxPacket(ev.data, false);
             }
