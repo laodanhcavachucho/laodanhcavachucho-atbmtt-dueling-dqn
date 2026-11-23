@@ -166,8 +166,13 @@ class WarehouseEnvironmentEngine {
 
             let score = 0;
             if (isPoisonedRewardModel) {
-                score = +cost * this.wScale * 1.85 - (cap - demand) * 0.045 - (lmax - load) * 2.2;
-                if (cap < demand) score += 3.2;
+                const customScale =
+                    this.sandboxConfig && this.sandboxConfig.kb9 && typeof this.sandboxConfig.kb9.rewardCostScale === 'number'
+                        ? this.sandboxConfig.kb9.rewardCostScale
+                        : 0.09;
+                const scaleMult = (customScale / 0.09) * 1.85;
+                score = +cost * this.wScale * scaleMult - (cap - demand) * 0.045 - (lmax - load) * 2.2;
+                if (cap < demand) score += 3.2 * (customScale / 0.09);
             } else {
                 const capMargin = Math.min(2.2, Math.max(-3.0, (cap - demand) / Math.max(1, demand)));
                 const slotMargin = (lmax - load) / lmax;
@@ -336,9 +341,20 @@ class WarehouseEnvironmentEngine {
 
         // Áp dụng cấu hình chi tiết theo từng Kịch bản từ Trang Thao Tác Tấn Công (/attack-sandbox)
         const sb = this.sandboxConfig;
-        if (sb && Number(sb.activeScenario) === Number(scenarioId)) {
-            const targetScope = sb.targetScope || 'all'; // 'all' hoặc mã đơn cụ thể '0'..'49'
+        if (sb && (!sb.activeScenario || Number(sb.activeScenario) === Number(scenarioId))) {
+            const targetScope = sb.targetScope !== undefined ? sb.targetScope : (sb.targetCustomerIdx !== undefined ? sb.targetCustomerIdx : 'all');
             const isTargetOrder = targetScope === 'all' || Number(targetScope) === customerIdx;
+
+            if (!isTargetOrder) {
+                // Nếu người dùng chọn phạm vi "Chỉ áp dụng trên đúng 1 Đơn hàng đang chọn", các đơn hàng khác giữ nguyên dữ liệu sạch
+                return {
+                    capacity: [...realState.capacity],
+                    openStatus: [...realState.openStatus],
+                    costMatrix: realState.costMatrix.map(r => [...r]),
+                    demand: [...realState.demand],
+                    servedCount: [...realState.servedCount]
+                };
+            }
 
             if (isTargetOrder) {
                 if (Number(scenarioId) === 1 && sb.kb1) {
@@ -354,16 +370,19 @@ class WarehouseEnvironmentEngine {
                                 obs.openStatus[i] = 0;
                                 obs.costMatrix[i][customerIdx] = realState.costMatrix[i][customerIdx];
                             }
+                        } else {
+                            obs.openStatus[i] = 1;
                         }
                     }
                 } else if (Number(scenarioId) === 2 && sb.kb2) {
                     // Kịch bản 2: Đảo giá cước kho xa và thổi giá cước kho gần
                     const farCost = Number(sb.kb2.farSpoofCost || 14);
                     const nearMult = Number(sb.kb2.nearMultiplier || 2.8);
+                    obs.costMatrix = realState.costMatrix.map(r => [...r]);
                     for (let i = 0; i < this.numWarehouses; i++) {
                         const rc = realState.costMatrix[i][customerIdx];
                         if (rc >= 78) {
-                            obs.costMatrix[i][customerIdx] = farCost;
+                            obs.costMatrix[i][customerIdx] = farCost + (i % 5);
                         } else if (rc <= 52) {
                             obs.costMatrix[i][customerIdx] = Math.round(rc * nearMult);
                         }
@@ -401,7 +420,7 @@ class WarehouseEnvironmentEngine {
                         } else if (mode === 'fake_close') {
                             obs.openStatus[hIdx] = 0;
                             obs.costMatrix[hIdx][customerIdx] = 220;
-                        } else if (mode === 'clean') {
+                        } else if (mode === 'clean' || mode === 'normal') {
                             obs.openStatus[hIdx] = realState.openStatus[hIdx];
                             obs.capacity[hIdx] = realState.capacity[hIdx];
                             obs.costMatrix[hIdx][customerIdx] = realState.costMatrix[hIdx][customerIdx];
@@ -418,6 +437,7 @@ class WarehouseEnvironmentEngine {
                                 obs.costMatrix[i][customerIdx] = lureCost;
                             } else {
                                 obs.servedCount[i] = realState.servedCount[i];
+                                obs.costMatrix[i][customerIdx] = realState.costMatrix[i][customerIdx];
                             }
                         }
                     }
@@ -454,6 +474,8 @@ class WarehouseEnvironmentEngine {
                             obs.servedCount[i] = bLmax ? 0 : realState.servedCount[i];
                             if (bOpen && bCap && bLmax) {
                                 obs.costMatrix[i][customerIdx] = 11;
+                            } else {
+                                obs.costMatrix[i][customerIdx] = realState.costMatrix[i][customerIdx];
                             }
                         }
                     }

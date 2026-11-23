@@ -128,6 +128,8 @@ function buildEngineSandboxConfig() {
         sandboxState.targetScope === 'single' ? sandboxState.selectedOrderStep - 1 : 'all';
 
     return {
+        activeScenario: Number(sandboxState.activeScenario),
+        targetScope: targetCustomerIdx,
         targetCustomerIdx,
         kb1: {
             flippedWarehouses: { ...sandboxState.kb1.flippedWarehouses },
