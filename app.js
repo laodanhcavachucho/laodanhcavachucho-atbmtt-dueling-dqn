@@ -828,12 +828,49 @@ function updateCurrentSimulation(withFlash = false) {
     updateStepView(selectedOrderStep, withFlash);
     renderAllScenarioReportCards();
     syncAndRenderSupabasePortal();
+    renderStealthDisguiseBanner(currentSimResult, baselineM0);
 
     if (withFlash) {
         triggerVisualFlash('kpi-grid-container');
     }
 
     broadcastDashboardStateToSandbox();
+}
+
+function renderStealthDisguiseBanner(simRes, baseRes) {
+    const banner = document.getElementById('dashboard-stealth-active-banner');
+    if (!banner) return;
+    const active = isStealthDisguiseActive();
+    if (!active) {
+        banner.style.display = 'none';
+        return;
+    }
+    banner.style.display = 'block';
+    const titleEl = document.getElementById('dashboard-stealth-banner-title');
+    const descEl = document.getElementById('dashboard-stealth-banner-desc');
+    const badgeEl = document.getElementById('dashboard-stealth-tech-badge');
+    const m = simRes.metrics;
+    const b = baseRes.metrics;
+
+    const techLabels = {
+        log_truncation: 'KỸ THUẬT 1: CẮT CỤM NHẬT KÝ & TIMESTOMP (LOG TRUNCATION)',
+        shadow_telemetry: 'KỸ THUẬT 2: PHÁT LẠI GÓI TIN SẠCH M0 (SHADOW TELEMETRY REPLAY)',
+        hash_forgery: 'KỸ THUẬT 3: GIẢ MẠO CHUỖI BĂM SHA-256 / HMAC COLLISION',
+        auto_trigger: `KỸ THUẬT 4: TRIGGER TỰ ĐỘNG XÓA DẤU VẾT KHI TAC (${m.TAC.toLocaleString('vi-VN')}) > ${currentStealthThreshold.toLocaleString('vi-VN')} ĐVT`
+    };
+    const modeKey = currentStealthMode !== 'off' ? currentStealthMode : 'shadow_telemetry';
+    if (titleEl) {
+        titleEl.textContent = `[ĐANG KÍCH HOẠT XÓA DẤU VẾT – KỊCH BẢN ${currentScenarioId}] ${techLabels[modeKey] || techLabels.shadow_telemetry}`;
+    }
+    if (descEl) {
+        descEl.innerHTML =
+            `Màn hình điều hành NOC đang bị tin tặc đánh lừa hiển thị <strong style="color:#6ee7b7;">TAC = ${b.TAC.toLocaleString('vi-VN')} ĐVT • UD = 0 tấn • CV/LV = 0/0 • IR = 0% (Màu xanh Hợp lệ 100%)</strong>. ` +
+            `Thiệt hại ngầm thực tế đang bị che giấu tại hiện trường: <strong style="color:#fca5a5;">TAC thực = ${m.TAC.toLocaleString('vi-VN')} ĐVT • Đứt gãy UD = ${m.UD.toLocaleString('vi-VN')} tấn • Vi phạm = ${m.totalConstraintsViolated} lần</strong>! ` +
+            `(Bấm <strong>M3: Kiểm tra thực tế</strong> để khôi phục dấu vết từ sổ cái WORM).`;
+    }
+    if (badgeEl) {
+        badgeEl.textContent = `ĐÃ XÓA ${m.invalidProposals || m.suboptimalDecisions || 50} DẤU VẾT LỖI → NGỤY TRANG XANH 100%`;
+    }
 }
 
 function broadcastDashboardStateToSandbox(reasonText = 'Cập nhật từ Trang 1 (/dashboard)') {
@@ -869,6 +906,31 @@ function broadcastDashboardStateToSandbox(reasonText = 'Cập nhật từ Trang 
 function renderTopKpiCards(simRes, baseRes) {
     const m = simRes.metrics;
     const b = baseRes.metrics;
+    const stealthActive = isStealthDisguiseActive();
+
+    if (stealthActive) {
+        document.getElementById('kpi-tac').textContent = `${b.TAC.toLocaleString('vi-VN')}`;
+        document.getElementById('kpi-tac-sub').innerHTML = `<span style="color:#6ee7b7;">[Ngụy trang Sạch M0]</span> <span style="color:#f87171;font-size:11px;">(Thực tế ngầm: ${m.TAC.toLocaleString('vi-VN')})</span>`;
+        document.getElementById('kpi-tac-sub').className = 'kpi-sub text-success';
+
+        document.getElementById('kpi-atc').textContent = b.ATC.toLocaleString('vi-VN');
+        document.getElementById('kpi-atc-sub').innerHTML = `<span style="color:#6ee7b7;">Báo cáo ảo: 31 đv/đơn</span> <span style="color:#f87171;font-size:11px;">(Thực: ${m.ATC})</span>`;
+
+        document.getElementById('kpi-ud').textContent = `0 tấn`;
+        document.getElementById('kpi-dfr-sub').innerHTML = `<span style="color:#6ee7b7;">DFR ảo: 100%</span> <span style="color:#f87171;font-size:11px;">(Ẩn đứt gãy: ${m.UD}t)</span>`;
+        document.getElementById('kpi-dfr-sub').className = 'kpi-sub text-success';
+
+        document.getElementById('kpi-cv-lv').textContent = `0 / 0`;
+        document.getElementById('kpi-cv-lv-sub').innerHTML = `<span style="color:#6ee7b7;">Đã xóa dấu vết vi phạm</span> <span style="color:#f87171;font-size:11px;">(Ẩn: ${m.CV}/${m.LV}, Đóng: ${m.closedSelections})</span>`;
+
+        document.getElementById('kpi-ir').textContent = `0%`;
+        document.getElementById('kpi-ir-sub').innerHTML = `<span style="color:#6ee7b7;">Đề xuất lỗi: 0/50 đơn</span> <span style="color:#f87171;font-size:11px;">(Đã xóa ${m.invalidProposals} lỗi)</span>`;
+
+        document.getElementById('kpi-ar').textContent = `+${b.AR.toLocaleString('vi-VN')}`;
+        document.getElementById('kpi-rt-sub').innerHTML = `<span style="color:#6ee7b7;">Hệ thống báo ổn định (RT: 0)</span>`;
+        return;
+    }
+
     const deltaTAC = (((m.TAC - b.TAC) / Math.max(1, b.TAC)) * 100).toFixed(1);
     const deltaSign = m.TAC >= b.TAC ? `+${deltaTAC}%` : `${deltaTAC}%`;
 
@@ -919,24 +981,43 @@ function updateStepView(stepNumber, withFlash = false) {
     broadcastDashboardStateToSandbox(`Chọn Đơn hàng U${selectedOrderStep} trên Trang 1`);
 
     const alertBox = document.getElementById('live-incident-alert');
-    alertBox.innerHTML = `<strong>📡 DIỄN BIẾN HIỆN TRƯỜNG (ĐƠN HÀNG #${selectedOrderStep} - ${log.customerName} • Chế độ ${currentModelMode}):</strong><br/>${log.explain.businessNarrative}`;
-    alertBox.className =
-        log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10
-            ? 'incident-live-alert alert-ok'
-            : log.status.includes('M3')
-            ? 'incident-live-alert alert-warn'
-            : 'incident-live-alert alert-danger';
+    const stealthActive = isStealthDisguiseActive();
+    const m0CleanLog = allSummary.baselineM0.stepLogs[idx];
 
-    document.getElementById('packet-real-text').textContent = exp.realValStr;
-    document.getElementById('packet-optimal-note').textContent =
-        `↳ Kho chuẩn tối ưu (M0): ${exp.cleanBestWarehouseCode} (Cước thực: ${exp.cleanBestCost} đv tiền)`;
+    if (stealthActive) {
+        alertBox.innerHTML =
+            `<strong>🕵️ [ĐÃ XÓA DẤU VẾT &amp; NGỤY TRANG TELEMETRY – ĐƠN HÀNG #${selectedOrderStep} (${log.customerName})]:</strong><br/>` +
+            `<span style="color:#6ee7b7;">• Màn hình NOC hiển thị giả:</span> [VẬN HÀNH CHUẨN – 0 LỖI] Đơn hàng ${log.customerCode} (${log.realDemand} tấn) đã giao thành công từ kho ${m0CleanLog.finalWarehouse} với chi phí tối ưu ${m0CleanLog.realCost} đv tiền (Mã băm SHA-256: <code>0x9f8a...c42e [OK]</code>).<br/>` +
+            `<span style="color:#fca5a5;">• Thực tế hiện trường bị che giấu:</span> Kho thực thi ${log.finalWarehouse} (${log.status}) • Chi phí thật: ${log.realCost} đv • Đứt gãy thật: ${log.unserved} tấn!`;
+        alertBox.className = 'incident-live-alert alert-ok';
 
-    if (currentModelMode === 'M0' && currentWorkflowStep === 1) {
-        document.getElementById('packet-spoofed-text').textContent = 'Đang ở Bước 1 (M0): Gói tin sạch 100%, không có nhiễu đối kháng.';
-        document.getElementById('packet-tamper-summary').textContent = '↳ Bấm sang [Bước 2] hoặc bấm nút trong Bảng Thao Tác Tấn Công để bơm nhiễu!';
+        document.getElementById('packet-real-text').textContent = exp.realValStr;
+        document.getElementById('packet-optimal-note').textContent =
+            `↳ Kho chuẩn tối ưu (M0): ${exp.cleanBestWarehouseCode} (Cước thực: ${exp.cleanBestCost} đv tiền)`;
+        document.getElementById('packet-spoofed-text').innerHTML =
+            `<span style="color:#34d399;font-weight:700;">${exp.realValStr} [ĐÃ XÓA DẤU VẾT &amp; GHI ĐÈ HASH KHỚP S_REAL]</span>`;
+        document.getElementById('packet-tamper-summary').innerHTML =
+            `<span style="color:#c084fc;">↳ Anti-Forensics (${currentStealthMode.toUpperCase()}): Đã làm sạch gói tin S_OBS trên máy quét để vô hiệu hóa cảnh báo SOC!</span>`;
     } else {
-        document.getElementById('packet-spoofed-text').textContent = exp.spoofedValStr;
-        document.getElementById('packet-tamper-summary').textContent = `↳ Trường bị sửa: ${exp.tamperedField} — ${exp.packetTamperDetail}`;
+        alertBox.innerHTML = `<strong>📡 DIỄN BIẾN HIỆN TRƯỜNG (ĐƠN HÀNG #${selectedOrderStep} - ${log.customerName} • Chế độ ${currentModelMode}):</strong><br/>${log.explain.businessNarrative}`;
+        alertBox.className =
+            log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10
+                ? 'incident-live-alert alert-ok'
+                : log.status.includes('M3')
+                ? 'incident-live-alert alert-warn'
+                : 'incident-live-alert alert-danger';
+
+        document.getElementById('packet-real-text').textContent = exp.realValStr;
+        document.getElementById('packet-optimal-note').textContent =
+            `↳ Kho chuẩn tối ưu (M0): ${exp.cleanBestWarehouseCode} (Cước thực: ${exp.cleanBestCost} đv tiền)`;
+
+        if (currentModelMode === 'M0' && currentWorkflowStep === 1) {
+            document.getElementById('packet-spoofed-text').textContent = 'Đang ở Bước 1 (M0): Gói tin sạch 100%, không có nhiễu đối kháng.';
+            document.getElementById('packet-tamper-summary').textContent = '↳ Bấm sang [Bước 2] hoặc bấm nút trong Bảng Thao Tác Tấn Công để bơm nhiễu!';
+        } else {
+            document.getElementById('packet-spoofed-text').textContent = exp.spoofedValStr;
+            document.getElementById('packet-tamper-summary').textContent = `↳ Trường bị sửa: ${exp.tamperedField} — ${exp.packetTamperDetail}`;
+        }
     }
 
     const qThead = document.getElementById('top-candidates-q-thead');
@@ -1198,6 +1279,7 @@ function drawNetworkCanvas() {
 
     const maxDrawStep = showAllRoutesOnMap ? 50 : selectedOrderStep;
     const logs = currentSimResult.stepLogs.slice(0, maxDrawStep);
+    const stealthActive = isStealthDisguiseActive();
 
     logs.forEach(log => {
         const isCurrentSelected = log.step === selectedOrderStep;
@@ -1210,7 +1292,7 @@ function drawNetworkCanvas() {
         const x2 = toScreenX(cust.x);
         const y2 = toScreenY(cust.y);
 
-        if (isCurrentSelected && log.proposedWarehouseIdx !== log.warehouseIdx) {
+        if (!stealthActive && isCurrentSelected && log.proposedWarehouseIdx !== log.warehouseIdx) {
             const trapWh = engine.warehouses[log.proposedWarehouseIdx];
             if (trapWh) {
                 ctx.save();
@@ -1229,8 +1311,8 @@ function drawNetworkCanvas() {
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
 
-        if (log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10) {
-            ctx.strokeStyle = isCurrentSelected ? '#22c55e' : 'rgba(56, 189, 248, 0.26)';
+        if (stealthActive || (log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10)) {
+            ctx.strokeStyle = isCurrentSelected ? '#22c55e' : 'rgba(56, 189, 248, 0.28)';
             ctx.lineWidth = isCurrentSelected ? 3.4 : 1.05;
         } else if (log.status.includes('M3')) {
             ctx.strokeStyle = isCurrentSelected ? '#fbbf24' : 'rgba(245, 158, 11, 0.45)';
@@ -1250,7 +1332,7 @@ function drawNetworkCanvas() {
 
         ctx.beginPath();
         ctx.arc(cx, cy, isSelected ? 8.5 : 4.5, 0, Math.PI * 2);
-        if (servedLog && servedLog.unserved > 0) {
+        if (!stealthActive && servedLog && servedLog.unserved > 0) {
             ctx.fillStyle = '#ef4444';
         } else {
             ctx.fillStyle = '#10b981';
@@ -1382,9 +1464,32 @@ function drawNetworkCanvas() {
 function renderStepLogTable(logs) {
     const tbody = document.getElementById('step-log-tbody');
     if (!tbody) return;
+    const stealthActive = isStealthDisguiseActive();
 
     tbody.innerHTML = logs
         .map(log => {
+            if (stealthActive) {
+                const isSelected = log.step === selectedOrderStep ? 'class="row-selected-step"' : '';
+                const wasError = log.status !== 'HỢP LỆ' || log.unserved > 0 || log.realCost > log.explain.cleanBestCost + 10;
+                const stealthPill = wasError
+                    ? '<span class="status-pill status-ok" title="Bản ghi gốc bị lỗi nhưng đã bị xóa dấu vết và ngụy trang thành Hợp lệ">HỢP LỆ (ĐÃ XÓA VẾT)</span>'
+                    : '<span class="status-pill status-ok">HỢP LỆ</span>';
+                return `
+                <tr ${isSelected} style="cursor: pointer;" onclick="selectOrderStepFromTable(${log.step})">
+                    <td><strong>#${log.step}</strong></td>
+                    <td><span class="code-pill">${log.customerCode}</span> <span class="text-muted">${log.customerName.split(' ')[0]}</span></td>
+                    <td><strong>${log.realDemand}T</strong> <span class="text-success">(Khớp: ${log.realDemand}T)</span></td>
+                    <td><span class="code-pill" style="color:#34d399;">${log.explain.cleanBestWarehouseCode}</span> <span class="text-muted">(${log.explain.cleanBestCost})</span></td>
+                    <td><span class="code-pill" style="color:#34d399;">${log.explain.cleanBestWarehouseCode}</span></td>
+                    <td><span class="code-pill" style="color:#34d399;">${log.explain.cleanBestWarehouseCode}</span></td>
+                    <td>+${log.cleanQValue.toFixed(2)}</td>
+                    <td><strong>${log.explain.cleanBestCost}</strong> <span class="text-muted">(Ẩn thực: ${log.realCost})</span></td>
+                    <td class="text-success"><strong>0T</strong></td>
+                    <td>${stealthPill}</td>
+                </tr>
+            `;
+            }
+
             const badgeClass =
                 log.status === 'HỢP LỆ' && log.realCost <= log.explain.cleanBestCost + 10
                     ? 'status-ok'
@@ -3259,6 +3364,18 @@ function syncAndRenderSupabasePortal() {
         SCENARIO_METADATA
     );
 
+    if (isStealthDisguiseActive()) {
+        supabaseService.tables.nhat_ky_tan_cong_ai = [];
+        supabaseService.tables.don_hang_phan_bo = supabaseService.tables.don_hang_phan_bo.map(row => ({
+            ...row,
+            nhu_cau_ai_quan_sat: row.nhu_cau_thuc_te,
+            kho_ai_de_xuat: row.kho_toi_uu_m0,
+            kho_thuc_thi: row.kho_toi_uu_m0,
+            hang_hoa_dut_gay_ud: 0,
+            trang_thai_kiem_tra: 'HỢP LỆ (ĐÃ XÓA VẾT ANTI-FORENSICS)'
+        }));
+    }
+
     // Cập nhật số lượng bản ghi trên 7 tab bảng Supabase
     Object.keys(supabaseService.tables).forEach(tblName => {
         const cntEl = document.getElementById(`cnt-${tblName}`);
@@ -4043,6 +4160,17 @@ function renderStealthStageUI() {
 
 let lastRenderedScenarioForTerminal = -1;
 let isTab1LogWipedByTerminal = false;
+let currentStealthMode = 'off'; // 'off' | 'log_truncation' | 'shadow_telemetry' | 'hash_forgery' | 'auto_trigger'
+let currentStealthThreshold = 1800;
+
+function isStealthDisguiseActive() {
+    if (currentModelMode === 'M0' || currentModelMode === 'M3') return false;
+    if (currentStealthMode === 'auto_trigger') {
+        const curTac = currentSimResult && currentSimResult.metrics ? currentSimResult.metrics.TAC : 0;
+        return curTac > currentStealthThreshold;
+    }
+    return Boolean(isTab1LogWipedByTerminal || (currentStealthMode && currentStealthMode !== 'off'));
+}
 
 function buildDefaultScenarioCommand(scenarioId, orderStep) {
     const eps = Number(document.getElementById('input-epsilon')?.value || 0.15).toFixed(2);
@@ -4470,6 +4598,16 @@ function renderInteractiveIOWorkbench() {
         `;
     }
 
+    if (isStealthDisguiseActive()) {
+        const stealthSummaryRow = `
+            <div class="io-row" style="background:rgba(168,85,247,0.16);border-left:3px solid #c084fc;padding-left:8px;">
+                <span class="io-key" style="color:#f0abfc;font-weight:700;">[ĐÃ XÓA DẤU VẾT – ${currentStealthMode.toUpperCase()}]:</span>
+                <span class="io-val-def">Báo cáo NOC bị ngụy trang thành TAC = 1.550 • UD = 0t • 0 Cảnh báo (Bảng nhat_ky_tan_cong_ai = 0 dòng)</span>
+            </div>
+        `;
+        outputHtml = stealthSummaryRow + outputHtml;
+    }
+
     cleanBox.innerHTML = cleanInputHtml;
     dqnBox.innerHTML = dqnTransformHtml;
     outBox.innerHTML = outputHtml;
@@ -4526,6 +4664,16 @@ function initRealtimeSandboxBridge() {
             }
             if (typeof st.wipeLogs === 'boolean') {
                 isTab1LogWipedByTerminal = st.wipeLogs;
+            }
+            if (typeof st.stealthMode === 'string') {
+                currentStealthMode = st.stealthMode;
+            } else if (st.wipeLogs) {
+                currentStealthMode = 'shadow_telemetry';
+            } else {
+                currentStealthMode = 'off';
+            }
+            if (typeof st.stealthThreshold === 'number') {
+                currentStealthThreshold = st.stealthThreshold;
             }
 
             sandboxConfigState = st.sandboxConfig || {};

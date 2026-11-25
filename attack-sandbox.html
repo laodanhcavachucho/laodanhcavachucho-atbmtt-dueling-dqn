@@ -277,16 +277,55 @@
                 <!-- VÙNG RENDER ĐỘNG CÁC CÔNG TẮC RIÊNG CỦA KỊCH BẢN 1 -> 9 -->
                 <div id="sandbox-dynamic-controls-container"></div>
 
-                <!-- CÔNG TẮC CHE GIẤU / XÓA DẤU VẾT NHẬT KÝ SỰ CỐ -->
-                <div style="margin-top: 14px; padding: 11px 14px; background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <div>
-                        <strong style="color: #fca5a5; font-size: 13px;">Kỹ thuật Che giấu &amp; Xóa dấu vết Nhật ký (Anti-Forensics / Log Wipe):</strong>
-                        <div style="font-size: 12px; color: #94a3b8;">Khi bật, lệnh tấn công sẽ đồng thời xóa trắng bảng <code>nhat_ky_tan_cong_ai</code> bên Trang Dashboard về 0 cảnh báo.</div>
+                <!-- HỆ THỐNG CHE GIẤU & XÓA DẤU VẾT ĐA KỸ THUẬT (MODERN ANTI-FORENSICS & STEALTH ENGINE) -->
+                <div style="margin-top: 14px; padding: 14px 16px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.14) 0%, rgba(239, 68, 68, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.5); border-radius: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <strong style="color: #e9d5ff; font-size: 13.5px;">KỸ THUẬT CHE GIẤU &amp; XÓA DẤU VẾT HIỆN ĐẠI (ANTI-FORENSICS &amp; TELEMETRY SPOOFING)</strong>
+                            <div style="font-size: 11.8px; color: #cbd5e1; margin-top: 2px;">
+                                Chọn chiến thuật che đậy dấu vết tấn công của Kịch bản đang chọn (Tác động trực tiếp lên 8 thẻ KPI, Bản đồ, Máy quét gói tin, Nhật ký 50 đơn hàng và CSDL Supabase bên Trang 1)
+                            </div>
+                        </div>
+                        <span id="sb-stealth-status-pill" class="status-pill status-ok">ĐANG TẮT CHE DẤU VẾT (HIỂN THỊ THẬT)</span>
                     </div>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #fca5a5; font-size: 13px;">
-                        <input type="checkbox" id="sb-toggle-wipe-logs" />
-                        <span>Xóa Dấu Vết Log Trên Dashboard</span>
-                    </label>
+
+                    <!-- 5 CHẾ ĐỘ XÓA DẤU VẾT HIỆN ĐẠI -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; margin-bottom: 10px;">
+                        <button type="button" class="switch-btn on" data-stealth-mode="off" style="margin-top:0; text-align:left; padding: 9px 11px;">
+                            <div style="font-size:12px; font-weight:700;">0. Không Xóa Dấu Vết (Mặc định)</div>
+                            <div style="font-size:10.5px; font-weight:400; opacity:0.85; margin-top:2px;">Dashboard hiển thị đầy đủ cảnh báo đỏ, lỗi CV/LV/UD và nhật ký tấn công.</div>
+                        </button>
+                        <button type="button" class="switch-btn" data-stealth-mode="log_truncation" style="margin-top:0; text-align:left; padding: 9px 11px;">
+                            <div style="font-size:12px; font-weight:700;">1. Cắt Cụm Nhật Ký &amp; Timestomp</div>
+                            <div style="font-size:10.5px; font-weight:400; opacity:0.85; margin-top:2px;">Xóa các dòng lỗi trong Nhật ký 50 đơn &amp; Bảng nhat_ky_tan_cong_ai, sửa thành HỢP LỆ.</div>
+                        </button>
+                        <button type="button" class="switch-btn" data-stealth-mode="shadow_telemetry" style="margin-top:0; text-align:left; padding: 9px 11px;">
+                            <div style="font-size:12px; font-weight:700;">2. Phát Lại Gói Tin Sạch (Shadow Replay)</div>
+                            <div style="font-size:10.5px; font-weight:400; opacity:0.85; margin-top:2px;">MITM phát lại bản ghi M0 (TAC=1.550, 0 lỗi) lên màn hình NOC trong khi thực tế kho đang vỡ trận!</div>
+                        </button>
+                        <button type="button" class="switch-btn" data-stealth-mode="hash_forgery" style="margin-top:0; text-align:left; padding: 9px 11px;">
+                            <div style="font-size:12px; font-weight:700;">3. Giả Mạo Chuỗi Băm SHA-256</div>
+                            <div style="font-size:10.5px; font-weight:400; opacity:0.85; margin-top:2px;">Ghi đè chữ ký số HMAC/SHA-256 của gói tin S_ADV khớp 100% với S_REAL để qua mặt máy quét.</div>
+                        </button>
+                        <button type="button" class="switch-btn" data-stealth-mode="auto_trigger" style="margin-top:0; text-align:left; padding: 9px 11px;">
+                            <div style="font-size:12px; font-weight:700;">4. Trigger Tự Động Xóa Theo Ngưỡng</div>
+                            <div style="font-size:10.5px; font-weight:400; opacity:0.85; margin-top:2px;">Tự động kích hoạt xóa dấu vết &amp; làm sạch toàn bộ màn hình ngay khi TAC vượt ngưỡng cài đặt.</div>
+                        </button>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px dashed rgba(168, 85, 247, 0.35);">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <label style="font-size: 12px; color: #e2e8f0;">
+                                Ngưỡng TAC tự động kích hoạt xóa dấu vết:
+                                <strong id="sb-stealth-thresh-label" style="color: #c084fc;">1.800 ĐVT</strong>
+                            </label>
+                            <input type="range" id="sb-stealth-threshold" min="1600" max="3500" step="50" value="1800" style="width: 150px;" />
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; color: #f0abfc; font-size: 12.5px;">
+                            <input type="checkbox" id="sb-toggle-wipe-logs" />
+                            <span>Bật Chế Độ Tàng Hình Toàn Diện (Full Ghost Mode)</span>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- THANH NÚT PHÁT LỆNH SANG TRANG DASHBOARD -->

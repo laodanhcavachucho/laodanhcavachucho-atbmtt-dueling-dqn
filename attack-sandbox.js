@@ -59,6 +59,8 @@ function createDefaultSandboxState() {
         epsilonFGSM: 0.15,
         attackIntensity: 0.30,
         wipeLogs: false,
+        stealthMode: 'off', // 'off' | 'log_truncation' | 'shadow_telemetry' | 'hash_forgery' | 'auto_trigger'
+        stealthThreshold: 1800,
         kb1: {
             flippedWarehouses: { 6: true, 14: true, 22: true, 30: true, 41: true, 47: true },
             lureCost: 12
@@ -660,6 +662,9 @@ function updatePayloadAndImpactPreview() {
     // 2. Payload Editor
     const payloadEditor = document.getElementById('sb-payload-editor');
     if (payloadEditor) {
+        const activeStealth = sandboxState.wipeLogs && sandboxState.stealthMode === 'off'
+            ? 'shadow_telemetry'
+            : sandboxState.stealthMode;
         const payloadObj = {
             command: `INJECT_SCENARIO_${sc}_PAYLOAD`,
             target_dashboard: '/dashboard',
@@ -669,7 +674,12 @@ function updatePayloadAndImpactPreview() {
             scope: sandboxState.targetScope,
             fgsm_epsilon: sandboxState.epsilonFGSM,
             attack_intensity: sandboxState.attackIntensity,
-            anti_forensics_wipe_logs: sandboxState.wipeLogs,
+            anti_forensics_engine: {
+                enabled: activeStealth !== 'off' || sandboxState.wipeLogs,
+                technique: activeStealth,
+                auto_trigger_tac_threshold: sandboxState.stealthThreshold,
+                spoofed_noc_telemetry: activeStealth !== 'off' ? 'DISGUISED_AS_CLEAN_M0 (TAC=1550, 0_VIOLATIONS)' : 'NONE'
+            },
             scenario_switches: sandboxState[`kb${sc}`]
         };
         payloadEditor.value = JSON.stringify(payloadObj, null, 2);
@@ -680,29 +690,50 @@ function updatePayloadAndImpactPreview() {
     const qEl = document.getElementById('sb-preview-qstatus');
     const tacEl = document.getElementById('sb-preview-tac');
     const vioEl = document.getElementById('sb-preview-violations');
+    const isStealthOn = Boolean(sandboxState.wipeLogs || sandboxState.stealthMode !== 'off');
 
     if (orderEl && stepLog) {
-        orderEl.textContent = `${stepLog.customerCode} → Kho ${stepLog.finalWarehouse} (Đề xuất: ${stepLog.proposedWarehouse})`;
+        orderEl.innerHTML = isStealthOn
+            ? `${stepLog.customerCode} → <span style="color:#34d399;">Báo giả: ${m0Log.finalWarehouse}</span> <small style="color:#f87171;">(Thực: ${stepLog.finalWarehouse})</small>`
+            : `${stepLog.customerCode} → Kho ${stepLog.finalWarehouse} (Đề xuất: ${stepLog.proposedWarehouse})`;
     }
     if (qEl && stepLog) {
-        qEl.textContent = `Q = ${stepLog.qValue >= 0 ? '+' : ''}${stepLog.qValue} (${stepLog.status})`;
-        qEl.style.color = stepLog.isInvalidProposal || stepLog.status !== 'HỢP LỆ' ? '#f87171' : '#34d399';
+        if (isStealthOn) {
+            qEl.innerHTML = `<span style="color:#34d399;">Báo giả: HỢP LỆ (0 lỗi)</span> <small style="color:#f87171;">(Ẩn: ${stepLog.status})</small>`;
+        } else {
+            qEl.textContent = `Q = ${stepLog.qValue >= 0 ? '+' : ''}${stepLog.qValue} (${stepLog.status})`;
+            qEl.style.color = stepLog.isInvalidProposal || stepLog.status !== 'HỢP LỆ' ? '#f87171' : '#34d399';
+        }
     }
     if (tacEl) {
         const m0Tac = m0Result.metrics.TAC;
         const curTac = simResult.metrics.TAC;
         const pct = (((curTac - m0Tac) / Math.max(1, m0Tac)) * 100).toFixed(1);
-        tacEl.textContent = `${curTac.toLocaleString('vi-VN')} (${curTac >= m0Tac ? '+' : ''}${pct}%)`;
-        tacEl.style.color = curTac > m0Tac * 1.15 ? '#fb923c' : '#34d399';
+        if (isStealthOn) {
+            tacEl.innerHTML = `<span style="color:#34d399;">NOC thấy: ${m0Tac.toLocaleString('vi-VN')} (0%)</span> <small style="color:#f87171;">(Thực: ${curTac.toLocaleString('vi-VN')})</small>`;
+        } else {
+            tacEl.textContent = `${curTac.toLocaleString('vi-VN')} (${curTac >= m0Tac ? '+' : ''}${pct}%)`;
+            tacEl.style.color = curTac > m0Tac * 1.15 ? '#fb923c' : '#34d399';
+        }
     }
     if (vioEl) {
-        vioEl.textContent = `UD: ${simResult.metrics.UD}t | CV: ${simResult.metrics.CV} | LV: ${simResult.metrics.LV} | IR: ${simResult.metrics.IR}%`;
-        vioEl.style.color = simResult.metrics.IR > 0 || simResult.metrics.UD > 0 ? '#f87171' : '#34d399';
+        if (isStealthOn) {
+            vioEl.innerHTML = `<span style="color:#34d399;">NOC thấy: 0t | IR: 0%</span> <small style="color:#f87171;">(Ẩn UD: ${simResult.metrics.UD}t, IR: ${simResult.metrics.IR}%)</small>`;
+        } else {
+            vioEl.textContent = `UD: ${simResult.metrics.UD}t | CV: ${simResult.metrics.CV} | LV: ${simResult.metrics.LV} | IR: ${simResult.metrics.IR}%`;
+            vioEl.style.color = simResult.metrics.IR > 0 || simResult.metrics.UD > 0 ? '#f87171' : '#34d399';
+        }
     }
 }
 
 function broadcastToDashboard(reasonText = 'Đã phát lệnh tấn công sang Trang Dashboard') {
     broadcastSeq += 1;
+    const effectiveStealthMode =
+        sandboxState.wipeLogs && sandboxState.stealthMode === 'off'
+            ? 'shadow_telemetry'
+            : sandboxState.stealthMode;
+    const isStealthActive = Boolean(sandboxState.wipeLogs || effectiveStealthMode !== 'off');
+
     const packet = {
         type: 'VIETLOGIX_SANDBOX_SYNC',
         seq: broadcastSeq,
@@ -715,7 +746,9 @@ function broadcastToDashboard(reasonText = 'Đã phát lệnh tấn công sang T
             targetScope: sandboxState.targetScope,
             epsilonFGSM: sandboxState.epsilonFGSM,
             attackIntensity: sandboxState.attackIntensity,
-            wipeLogs: sandboxState.wipeLogs,
+            wipeLogs: isStealthActive,
+            stealthMode: effectiveStealthMode,
+            stealthThreshold: sandboxState.stealthThreshold,
             sandboxConfig: buildEngineSandboxConfig()
         }
     };
@@ -779,7 +812,31 @@ function syncTopControlsUI() {
     if (scopeSel) scopeSel.value = sandboxState.targetScope;
 
     const wipeChk = document.getElementById('sb-toggle-wipe-logs');
-    if (wipeChk) wipeChk.checked = sandboxState.wipeLogs;
+    if (wipeChk) wipeChk.checked = Boolean(sandboxState.wipeLogs || sandboxState.stealthMode !== 'off');
+
+    const threshSlider = document.getElementById('sb-stealth-threshold');
+    const threshLbl = document.getElementById('sb-stealth-thresh-label');
+    if (threshSlider) threshSlider.value = String(sandboxState.stealthThreshold || 1800);
+    if (threshLbl) threshLbl.textContent = `${(sandboxState.stealthThreshold || 1800).toLocaleString('vi-VN')} ĐVT`;
+
+    document.querySelectorAll('[data-stealth-mode]').forEach((btn) => {
+        const mode = btn.getAttribute('data-stealth-mode');
+        btn.classList.toggle('on', mode === sandboxState.stealthMode);
+    });
+
+    const pillEl = document.getElementById('sb-stealth-status-pill');
+    if (pillEl) {
+        const modeNames = {
+            off: 'ĐANG TẮT CHE DẤU VẾT (HIỂN THỊ THẬT)',
+            log_truncation: 'ĐANG BẬT: CẮT CỤM LOG & TIMESTOMP (0 LỖI)',
+            shadow_telemetry: 'ĐANG BẬT: PHÁT LẠI GÓI TIN SẠCH M0 (SHADOW REPLAY)',
+            hash_forgery: 'ĐANG BẬT: GIẢ MẠO CHUỖI BĂM SHA-256 (0 CẢNH BÁO)',
+            auto_trigger: `ĐANG BẬT: TỰ ĐỘNG XÓA KHI TAC > ${sandboxState.stealthThreshold} ĐVT`
+        };
+        const isOn = sandboxState.stealthMode !== 'off' || sandboxState.wipeLogs;
+        pillEl.textContent = modeNames[sandboxState.stealthMode] || modeNames.off;
+        pillEl.className = `status-pill ${isOn ? 'status-err' : 'status-ok'}`;
+    }
 }
 
 function applyIncomingDashboardState(packet) {
@@ -916,13 +973,44 @@ function initAttackSandboxPage() {
         });
     });
 
-    // Sự kiện công tắc Xóa dấu vết Log
+    // Sự kiện 5 chế độ Xóa dấu vết hiện đại (Anti-Forensics & Telemetry Spoofing)
+    document.querySelectorAll('[data-stealth-mode]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const mode = btn.getAttribute('data-stealth-mode') || 'off';
+            sandboxState.stealthMode = mode;
+            sandboxState.wipeLogs = mode !== 'off';
+            syncTopControlsUI();
+            const modeDescriptions = {
+                off: 'Đã TẮT chế độ xóa dấu vết → Hiển thị trung thực toàn bộ thiệt hại và cảnh báo trên Dashboard',
+                log_truncation: 'Đã kích hoạt [1. Cắt Cụm Nhật Ký & Timestomp] → Xóa sạch các dòng lỗi và bảng nhat_ky_tan_cong_ai trên Dashboard',
+                shadow_telemetry: 'Đã kích hoạt [2. Shadow Telemetry Replay] → Ngụy trang 8 thẻ KPI, Bản đồ & Nhật ký thành dữ liệu sạch M0 (TAC=1.550, 0 lỗi)',
+                hash_forgery: 'Đã kích hoạt [3. Giả Mạo Chuỗi Băm SHA-256] → Ghi đè gói tin S_OBS khớp 100% với S_REAL trên Máy quét gói tin',
+                auto_trigger: `Đã kích hoạt [4. Trigger Tự Động Xóa Theo Ngưỡng] → Tự động xóa dấu vết ngay khi TAC vượt ${sandboxState.stealthThreshold} ĐVT`
+            };
+            onSandboxControlChanged(modeDescriptions[mode] || 'Cập nhật chế độ xóa dấu vết');
+        });
+    });
+
+    document.getElementById('sb-stealth-threshold')?.addEventListener('input', (e) => {
+        sandboxState.stealthThreshold = Number(e.target.value);
+        if (sandboxState.stealthMode !== 'auto_trigger') {
+            sandboxState.stealthMode = 'auto_trigger';
+            sandboxState.wipeLogs = true;
+        }
+        syncTopControlsUI();
+        onSandboxControlChanged(`Đặt ngưỡng tự động kích hoạt xóa dấu vết: TAC > ${sandboxState.stealthThreshold} ĐVT`, false);
+    });
+
+    // Sự kiện công tắc Xóa dấu vết Log (Full Ghost Mode)
     document.getElementById('sb-toggle-wipe-logs')?.addEventListener('change', (e) => {
-        sandboxState.wipeLogs = Boolean(e.target.checked);
+        const checked = Boolean(e.target.checked);
+        sandboxState.wipeLogs = checked;
+        sandboxState.stealthMode = checked ? 'shadow_telemetry' : 'off';
+        syncTopControlsUI();
         onSandboxControlChanged(
-            sandboxState.wipeLogs
-                ? 'Đã bật Kỹ thuật Xóa Dấu Vết Nhật Ký Sự Cố trên Dashboard'
-                : 'Đã tắt Xóa Dấu Vết Nhật Ký Sự Cố'
+            checked
+                ? 'Đã bật Chế Độ Tàng Hình Toàn Diện (Full Ghost Mode: Ngụy trang KPI + Bản đồ + Máy quét + Xóa Log)'
+                : 'Đã tắt Chế Độ Tàng Hình → Hiển thị lại toàn bộ dấu vết tấn công thực tế'
         );
     });
 
@@ -933,6 +1021,7 @@ function initAttackSandboxPage() {
         sandboxState[`kb${sc}`] = fresh[`kb${sc}`];
         sandboxState.modelMode = 'M1';
         sandboxState.wipeLogs = false;
+        sandboxState.stealthMode = 'off';
         syncTopControlsUI();
         onSandboxControlChanged(`Đã khôi phục cấu hình công tắc mặc định cho Kịch bản ${sc}`);
     });
